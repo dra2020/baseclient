@@ -22,4 +22,5 @@ These libraries are used across both client and server:
 - [LogAbstract](./docs/logabstract.md): An abstract logging interface. Different implementations are used on client and server.
 - [LogClient](./docs/logclient.md): A client implementation of the logging abstract interface.
 - [OT](./docs/ot-js.md): An Operational Transformation implementation, used as the basis for all content editing.
-- [OTE](.docs/ot-editutil.md): A set of utility functions for creating OT edits.
+- [OTE](./docs/ot-editutil.md): A set of utility functions for creating OT edits.
+- [FilterExpr](./docs/filterexpr.md): A class for parsing and executing a filter expression against an array of objects.
