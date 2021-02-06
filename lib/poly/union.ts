@@ -59,6 +59,23 @@ export function polyIntersects(p1: any, p2: any): boolean
   return bIntersects;
 }
 
+export function polyDifference(main: any, parts: any[]): any
+{
+  main = PP.polyUnpack(coords(main));
+
+  // need to explode multipolygon so that "exploded" is a valid multipolygon input to underlying difference routine
+  let exploded: any[] = [];
+  parts.forEach((p: any) => {
+      p = PP.polyUnpack(coords(p));
+      if (Util.depthof(p) == 5)
+        p.forEach((poly: any) => { exploded.push(poly) });
+      else
+        exploded.push(p);
+    });
+
+  return PR.polyRound(_difference(main, exploded));
+}
+
 class FsmDifference extends FSM.Fsm
 {
   accum: any;

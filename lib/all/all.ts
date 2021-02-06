@@ -17,3 +17,5 @@ import * as OTE from '../ot-editutil/all';
 export { OTE };
 import { FilterExpr } from '../filterexpr/all';
 export { FilterExpr }
+import * as G from '../geo/all';
+export { G };

@@ -392,7 +392,7 @@ class FsmIncrementalUnion extends FSM.Fsm
       let values = Object.values(map);
       this.work = { nUnion: values.length, nDifference: 0, ms: 0 };
       let elapsed = new Util.Elapsed();
-      this.result = topoMergeFeatures(this.key.topo, values);
+      this.result = topoMergeFeatures(this.key.multi.allTopo(), values);
       this.work.ms = elapsed.ms();
       this.map = map;
     }
