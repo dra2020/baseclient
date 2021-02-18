@@ -325,12 +325,37 @@ export class GeoMultiCollection
     return found;
   }
 
+  nthFilteredFeature(n: number, cb: (f: GeoFeature) => boolean)
+  {
+    let found: GeoFeature;
+
+    this.forEachEntry(e => {
+        if (found) return;
+        let col = this._col(e);
+        if (col)
+          for (let i = 0; !found && i < col.features.length; i++)
+          {
+            let f = col.features[i];
+            if (this.hidden[f.properties.id] === undefined && cb(f))
+            {
+              if (n === 0)
+              {
+                found = f;
+                break;
+              }
+              n--;
+            }
+          }
+      });
+    return found;
+  }
+
   forEach(cb: FeatureFunc): void
   {
     this.forEachEntry(e => {
         let col = this._col(e);
-        if (col)
-          col.features.forEach(f => { if (this.hidden[f.properties.id] === undefined) cb(f) })
+        if (e.col)
+          e.col.features.forEach(f => { if (this.hidden[f.properties.id] === undefined) cb(f) })
       });
   }
 
