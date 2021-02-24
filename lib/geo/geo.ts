@@ -386,6 +386,18 @@ export class GeoMultiCollection
 
     return undefined;
   }
+
+  filter(test: (f: GeoFeature) => boolean): GeoMultiCollection
+  {
+    let m = new GeoMultiCollection();
+    this.forEachEntry(e => {
+        let col = this._col(e);
+        let features = col ? col.features.filter(test) : null;
+        if (features && features.length)
+          m.add(e.tag, null, { type: 'FeatureCollection', features: features }, null);
+      });
+    return m;
+  }
 }
 
 export enum geoIntersectOptions { Intersects, Bounds, BoundsCenter };
