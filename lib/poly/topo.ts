@@ -59,19 +59,6 @@ function correctGeometry(f: any): any
   {
     let multiPoly = f.geometry.coordinates;
 
-    /* Comment this out right now - might have been do to not rewinding merge output
-    // topojson will under certain circumstances return a MultiPolygon with the first Polygon containing holes
-    // that are precisely filled by a subsequent polygon. We make a secondary union pass to try to correct for this.
-    // If we have a really degenerate multipolygon (test above some number of polygons) omit this expensive pass
-    // since cleanup is unlikely.
-    if (multiPoly.length > 1 && multiPoly.length < 50)
-    {
-      let result = Q.unionPolys(multiPoly);
-      if (Util.depthof(result) == 4) result = [ result ];
-      multiPoly = result;
-    }
-    */
-
     // Convert degenerate MultiPolygon to Polygon
     if (multiPoly.length == 1)
     {
@@ -79,6 +66,9 @@ function correctGeometry(f: any): any
       f.geometry.coordinates = multiPoly[0];
     }
   }
+
+  // TopoJSON does not guarantee proper winding order which messes up later processing. Fix it.
+  P.featureRewind(f);
 
   return f;
 }
@@ -318,28 +308,7 @@ export function topoMerge(topo: Topo, geoids: string[]): any
   if (geoids == null || geoids.length == 0) return null;
   let objects: any[] = [];
   geoids.forEach((geoid) => objects.push(topo.objects[geoid]));
-  let f: any = correctGeometry({ type: 'Feature', properties: {}, geometry: TopoClient.merge(topo, objects) });
-  P.featureRewind(f);
-
-  /* Comment out for now - may be due to merge output needing to be rewound
-  // If I get a bad output from topoMerge, just do more expensive poly union. This can happen if input polygons
-  // are a little funky (in particular, if they double back along the same edge.
-  if (selfIntersectFast(f))
-  {
-    //console.log('topoMerge: patching selfIntersect');
-    let polys: any[] = [];
-    geoids.forEach((geoid) => polys.push(topoToFeature(topo, geoid).geometry.coordinates));
-    let result = Q.unionPolys(polys);
-    let depth = Util.depthof(result);
-    if (depth === 5 && result.length === 1)
-    {
-      depth = 4;
-      result = result[0];
-    }
-    f = { type: 'feature', properties: {}, geometry: { type: depth == 4 ? 'Polygon' : 'MultiPolygon', coordinates: result } };
-  }
-  */
-  return f;
+  return correctGeometry({ type: 'Feature', properties: {}, geometry: TopoClient.merge(topo, objects) });
 }
 
 export function topoMergeFeatures(topo: Topo, features: any[]): any
