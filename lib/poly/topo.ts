@@ -184,6 +184,11 @@ export interface SimplifyOptions
 
 const DefaultSimplifyOptions: SimplifyOptions = { minArea: 500 };
 
+function log(s: string): void
+{
+  //console.log(s);
+}
+
 //
 // topoSimplifyCollection:
 //    This implements our simplification strategy for block/precinct level shapes. The basic idea is to
@@ -208,10 +213,10 @@ export function topoSimplifyCollection(col: any, options?: SimplifyOptions): any
   let elapsedTotal = new Util.Elapsed();
   let elapsed = new Util.Elapsed();
   let topo = topoFromCollection(col);
-  console.log(`topoSimplifyCollection: fromCollection: ${Math.round(elapsed.ms())}ms`);
+  log(`topoSimplifyCollection: fromCollection: ${Math.round(elapsed.ms())}ms`);
   elapsed.start();
   topo = TopoSimplify.presimplify(topo, TopoSimplify['sphericalTriangleArea']);
-  console.log(`topoSimplifyCollection: presimplify: ${Math.round(elapsed.ms())}ms`);
+  log(`topoSimplifyCollection: presimplify: ${Math.round(elapsed.ms())}ms`);
   elapsed.start();
 
   // Keep iterating on removing simplification from degenerate shapes
@@ -276,13 +281,13 @@ export function topoSimplifyCollection(col: any, options?: SimplifyOptions): any
           }
         }
       });
-    console.log(`topoSimplifyCollection: pass ${nTries}: ${nBad} (${nTiny} tiny) of ${col.features.length} features are degenerate`);
+    log(`topoSimplifyCollection: pass ${nTries}: ${nBad} (${nTiny} tiny) of ${col.features.length} features are degenerate`);
 
     // If not making progress, keep more points
     if (nBad >= nBadLast)
     {
       keepweight /= 10;
-      console.log(`topoSimplifyCollection: pass ${nTries}: reducing weight limit to ${keepweight}`);
+      log(`topoSimplifyCollection: pass ${nTries}: reducing weight limit to ${keepweight}`);
     }
     nBadLast = nBad;
 
@@ -298,7 +303,7 @@ export function topoSimplifyCollection(col: any, options?: SimplifyOptions): any
     nTries++;
   }
 
-  console.log(`topoSimplifyCollection: total elapsed time: ${bigTimeString(elapsedTotal.ms())}`);
+  log(`topoSimplifyCollection: total elapsed time: ${bigTimeString(elapsedTotal.ms())}`);
 
   return col;
 }
