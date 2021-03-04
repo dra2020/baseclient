@@ -218,10 +218,8 @@ export class GeoMultiCollection
       if (n == 1)
         this.all.col = this._col(this.nthEntry(0));
       else
-      {
-        this.all.col = { type: 'FeatureCollection', features: [] };
-        this.forEach(f => { this.all.col.features.push(f) });
-      }
+        // Going from map to collection guarantees that any duplicates are removed
+        this.all.col = geoMapToCollection(this.allMap());
     }
     return this.all.col;
   }
@@ -236,7 +234,11 @@ export class GeoMultiCollection
       if (n == 1)
         this.all.map = this._map(this.nthEntry(0));
       else
-        this.all.map = geoCollectionToMap(this.allCol());
+      {
+        let map: GeoFeatureMap = {};
+        this.all.map = map;
+        this.forEach(f => { map[String(f.properties.id)] = f });
+      }
     }
     return this.all.map;
   }
