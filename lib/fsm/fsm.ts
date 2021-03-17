@@ -291,6 +291,7 @@ export class FsmOnDone extends Fsm
 export class FsmSleep extends Fsm
 {
   delay: number;
+  timeoutHandle: any;
 
   constructor(env: FsmEnvironment, delay: number)
     {
@@ -300,10 +301,19 @@ export class FsmSleep extends Fsm
 
   tick(): void
     {
-      if (this.ready && this.state === FSM_STARTING)
+      // This allows canceling by simply setting state to done
+      if (this.done && this.timeoutHandle !== undefined)
+      {
+        clearTimeout(this.timeoutHandle);
+        delete this.timeoutHandle;
+      }
+      else if (this.ready && this.state === FSM_STARTING)
       {
         this.setState(FSM_PENDING);
-        setTimeout(() => { this.setState(FSM_DONE); }, this.delay);
+        this.timeoutHandle = setTimeout(() => {
+            delete this.timeoutHandle;
+            this.setState(FSM_DONE)
+          }, this.delay);
       }
     }
 }
