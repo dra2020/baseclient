@@ -111,6 +111,8 @@ export interface SessionProps
 	loadFailed: boolean;
   accessMap: AccessMap;
   revisions: RevisionList;
+  expunged?: boolean;
+  expungeDate?: string;
   xprops?: { [prop: string]: string };
 }
 
