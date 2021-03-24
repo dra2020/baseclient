@@ -484,6 +484,45 @@ function wordyDate(s: string): string
   return s;
 }
 
+function clauseEqual(c1: Clause, c2: Clause): boolean
+{
+  if (c1 == null && c2 == null) return true;
+  if (c1 == null || c2 == null) return false;
+  if (c1.op.tt === c2.op.tt)
+  {
+    if (c1.op.tt === TokType.Text)
+      return c1.op.text === c2.op.text;
+    else
+      return clauseEqual(c1.operand1, c2.operand1) && clauseEqual(c1.operand2, c2.operand2);
+  }
+  else
+    return false;
+}
+
+function containsClause(c: Clause, s: Clause): boolean
+{
+  if (clauseEqual(c, s))
+    return true;
+  if (c == null || s == null) return false;
+  return containsClause(c.operand1, s) || containsClause(c.operand2, s);
+}
+
+function removeClause(c: Clause, s: Clause): Clause
+{
+  if (c == null || (c.op.tt === TokType.Text && c.op.tt !== s.op.tt))
+    return c;
+  else if (clauseEqual(c, s))
+    return null;
+  else
+  {
+    c.operand1 = removeClause(c.operand1, s);
+    c.operand2 = removeClause(c.operand2, s);
+    if ((c.op.tt === TokType.And || c.op.tt === TokType.Or) && (c.operand1 == null || c.operand2 == null))
+      return c.operand1 || c.operand2;
+    return c;
+  }
+}
+
 export class FilterExpr
 {
   lexer: Lexer;
@@ -512,12 +551,47 @@ export class FilterExpr
     return this.asStringClause(this.parser.clause);
   }
 
+  containsClause(expr: string): boolean
+  {
+    let sub = new FilterExpr(this.lexer.coder, expr);
+    return containsClause(this.parser.clause, sub.parser.clause);
+  }
+
+  addClause(expr: string): void
+  {
+    let sub = new FilterExpr(this.lexer.coder, expr);
+    if (! containsClause(this.parser.clause, sub.parser.clause))
+    {
+      if (this.parser.clause)
+        this.parser.clauses = [ { op: { tt: TokType.And }, operand1: this.parser.clause, operand2: sub.parser.clause } ];
+      else
+        this.parser.clauses = [ sub.parser.clause ];
+    }
+  }
+
+  removeClause(expr: string): void
+  {
+    if (this.containsClause(expr))
+    {
+      let sub = new FilterExpr(this.lexer.coder, expr);
+      this.parser.clauses = [ removeClause(this.parser.clause, sub.parser.clause) ];
+    }
+  }
+
   asStringClause(clause: Clause): string
   {
     if (clause == null) return '';
-    if (clause.op.tt == TokType.Text) return `'${clause.op.text}'`;
+    if (clause.op.tt == TokType.Text)
+    {
+      this.lexer.set(clause.op.text);
+      if (this.lexer.tokens.length == 1 && this.lexer.tokens[0].tt === TokType.Text)
+        return clause.op.text;
+      else
+        return `'${clause.op.text}'`;
+    }
     let a: string[] = [];
-    a.push('(');
+    if (clause !== this.parser.clause)
+      a.push('(');
     switch (clause.op.tt)
     {
       case TokType.And:
@@ -535,8 +609,7 @@ export class FilterExpr
         a.push(this.asStringClause(clause.operand1));
         break;
       case TokType.Colon:
-        a.push(this.asStringClause(clause.operand1));
-        a.push(':');
+        a.push(`${this.asStringClause(clause.operand1)}:`);
         a.push(this.asStringClause(clause.operand2));
         break;
       case TokType.Equal:
@@ -551,7 +624,8 @@ export class FilterExpr
       default:
         throw 'Unexpected token in asString';
     }
-    a.push(')');
+    if (clause !== this.parser.clause)
+      a.push(')');
     return a.join(' ');
   }
 
