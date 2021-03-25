@@ -23,7 +23,8 @@ export const FilterRecent: number = 3;
 export const FilterTrash: number = 4;
 export const FilterPublic: number = 5;
 export const FilterOfficial: number = 6;
-export const FilterCount: number = 7;
+export const FilterCOI: number = 7;
+export const FilterCount: number = 8;
 export type Filter = number;
 
 // Permissions
