@@ -221,7 +221,8 @@ export function polyPack(coords: any, prepack?: PolyPack): PolyPack
 
   // Transparently handle polygon or multi-polygon
   let depth = Util.depthof(coords);
-  if (depth == 3) coords = [ [ coords ] ];
+  if (depth == 2) coords = [ [ [ coords ] ] ];
+  else if (depth == 3) coords = [ [ coords ] ];
   else if (depth == 4) coords = [ coords ];
 
   let nFloats = polyPackSize(coords);
@@ -374,9 +375,18 @@ export function featureUnpack(f: any): any
   if (f && f.geometry && f.geometry.packed !== undefined)
   {
     f.geometry.coordinates = polyUnpack(f.geometry.packed);
+    let depth = Util.depthof(f.geometry.coordinates);
     // Check for oops, optimized away the multipolygon in polyUnpack
-    if (f.geometry.type === 'MultiPolygon' && Util.depthof(f.geometry.coordinates) === 4)
+    if (f.geometry.type === 'MultiPolygon' && depth === 4)
       f.geometry.coordinates = [ f.geometry.coordinates ];
+    else if (f.geometry.type === 'Point' && depth != 2)
+    {
+      while (depth > 2)
+      {
+        f.geometry.coordinates = f.geometry.coordinates[0];
+        depth = Util.depthof(f.geometry.coordinates);
+      }
+    }
     delete f.geometry.packed;
   }
   else if (f.type && f.type === 'FeatureCollection' && f.features)
