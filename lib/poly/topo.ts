@@ -67,8 +67,14 @@ function correctGeometry(f: any): any
     }
   }
 
-  // TopoJSON does not guarantee proper winding order which messes up later processing. Fix it.
-  P.featureRewind(f);
+  if (f && f.geometry && f.geometry.type === 'Point' && f.geometry.coordinates)
+  {
+    while (Array.isArray(f.geometry.coordinates[0]))
+      f.geometry.coordinates = f.geometry.coordinates[0];
+  }
+  else
+    // TopoJSON does not guarantee proper winding order which messes up later processing. Fix it.
+    P.featureRewind(f);
 
   return f;
 }
@@ -235,6 +241,11 @@ export function topoSimplifyCollection(col: any, options?: SimplifyOptions): any
     col.features.forEach((f: any) => {
         let oOld: any = topo.objects[f.properties.id];
         let oNew: any = testtopo.objects[f.properties.id];
+
+        // Ignore points
+        if (f.geometry && f.geometry.type === 'Point')
+          keepTiny.set(f, f);
+
         if (! keepTiny.has(f))
         {
           // Walk through each polygon of a multipolygon separately since I may have a large non-degenerate
