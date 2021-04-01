@@ -54,9 +54,10 @@ export function packCollection(coder: Util.Coder, col: any): ArrayBuffer
 {
   // Compute size
   let pp = PP.featurePack(col) as PP.PolyPack;
-  let buffer: any = col.features.length ? col.features[0].geometry.packed.buffer : null;  // to restore, below
+  let f: any = col.features.find((f: any) => { return f.geometry.packed ? f.geometry.packed.buffer : null });
+  let buffer: any = f ? f.geometry.packed.buffer : null;
   let size = 16; // int endiness, offset to coordinates, float endiness
-  col.features.forEach((f: any) => { delete f.geometry.packed.buffer; }); // reconstructed when unpacking
+  col.features.forEach((f: any) => { if (f.geometry.packed) delete f.geometry.packed.buffer; }); // reconstructed when unpacking
   let j = JSON.stringify(col);
   size += sizeOfString(coder, j);
   size += pad(size, 8);
@@ -84,7 +85,7 @@ export function packCollection(coder: Util.Coder, col: any): ArrayBuffer
     buf64[foff++] = buf[i];
 
   // Now restore
-  col.features.forEach((f: any) => { f.geometry.packed.buffer = buffer; });
+  col.features.forEach((f: any) => { if (f.geometry.packed) f.geometry.packed.buffer = buffer; });
   PP.featureUnpack(col);
 
   return ab;
@@ -144,7 +145,7 @@ export function unpackCollection(coder: Util.Coder, ab: ArrayBuffer): any
   let offset = 16;
   let j = unpackString(coder, buf8, buf32, offset);
   col = JSON.parse(j);
-  col.features.forEach((f: any) => { f.geometry.packed.buffer = buf64 });
+  col.features.forEach((f: any) => { if (f.geometry.packed) f.geometry.packed.buffer = buf64 });
   return col;
 }
 

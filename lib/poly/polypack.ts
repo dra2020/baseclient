@@ -326,7 +326,7 @@ export function polyUnpack(prepack: any): any
 
 export function featurePackSize(f: any): number
 {
-  if (f && f.geometry && f.geometry.coordinates)
+  if (f && f.geometry && f.geometry.coordinates && f.geometry.type !== 'Point')
     return polyPackSize(f.geometry.coordinates);
   return 0;
 }
@@ -335,7 +335,9 @@ export function featurePack(f: any, prepack?: PolyPack): any
 {
   if (f && f.type === 'Feature')
   {
-    if (f.geometry && f.geometry.coordinates)
+    if (f.geometry && f.geometry.type === 'Point')
+      return prepack ? { offset: prepack.offset, length: 0, buffer: prepack.buffer } : { offset: 0, length: 0, buffer: null };
+    else if (f.geometry && f.geometry.coordinates)
     {
       f.geometry.packed = polyPack(f.geometry.coordinates, prepack);
       delete f.geometry.coordinates;
