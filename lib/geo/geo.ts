@@ -7,6 +7,21 @@ export type GeoFeature = geojson.Feature;
 export type GeoFeatureArray = GeoFeature[];
 export type GeoFeatureCollection = geojson.FeatureCollection;
 
+export function geoEnsureID(col: GeoFeatureCollection): void
+{
+  let prop: string;
+  const props = ['id', 'GEOID', 'GEOID10', 'GEOID20', 'GEOID30' ];
+
+  if (col && col.features && col.features.length > 0)
+  {
+    let f = col.features[0];
+    if (f.properties.id !== undefined) return;
+    props.forEach(p => { if (prop === undefined && f.properties[p] !== undefined) prop = p; });
+    if (prop)
+      col.features.forEach(f => { f.properties.id = f.properties[prop] });
+  }
+}
+
 export function geoCollectionToMap(col: GeoFeatureCollection): GeoFeatureMap
 {
   if (col == null) return null;
