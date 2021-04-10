@@ -13,3 +13,4 @@ export * from './polyround';
 export * from './topo';
 export * from './selfintersect';
 export * from './shamos';
+export * from './pointinpoly';
