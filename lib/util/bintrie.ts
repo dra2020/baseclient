@@ -1,3 +1,5 @@
+import * as U from './util';
+
 //
 // Packed format Trie for mapping string to string
 //  Assumptions:
@@ -343,8 +345,16 @@ export class BinTrie
   }
 }
 
+export interface BinTrieOptions
+{
+  dedup?: boolean,
+  verbose?: boolean,
+}
+let DefaultOptions: BinTrieOptions = { dedup: true, verbose: false };
+
 export class BinTrieBuilder
 {
+  options: BinTrieOptions;
   coder: Coder;
   root: UnpackedNode;
   vtb: ValueTableBuilder;
@@ -353,9 +363,10 @@ export class BinTrieBuilder
   u8: Uint8Array;
   i32: Int32Array;
 
-  constructor(coder: Coder)
+  constructor(coder: Coder, options?: BinTrieOptions)
   {
     this.coder = coder;
+    this.options = U.shallowAssignImmutable(DefaultOptions, options);
   }
 
   // Building
@@ -542,9 +553,9 @@ export class BinTrieBuilder
   }
 
   // Building
-  static fromMap(coder: Coder, o: StringMap): BinTrie
+  static fromMap(coder: Coder, o: StringMap, options?: BinTrieOptions): BinTrie
   {
-    let btb = new BinTrieBuilder(coder);
+    let btb = new BinTrieBuilder(coder, options);
     btb.vtb = ValueTableBuilder.fromStrings(coder, Object.values(o));
     btb.vt = ValueTable.fromBuffer(coder, btb.vtb.ab, 0, btb.vtb.ab.byteLength);
     let keys = Object.keys(o);
@@ -563,7 +574,8 @@ export class BinTrieBuilder
       });
 
     // dedup (collapse branches pointing to same value)
-    btb.dedup(btb.root);
+    if (btb.options.dedup)
+      btb.dedup(btb.root);
 
     // validate
     keys.forEach(k => {
@@ -596,7 +608,8 @@ export class BinTrieBuilder
         }
       });
 
-    console.log(`bintrie: total size: ${btb.u8.length}, value table size: ${btb.vtb.u8.length}`);
+    if (btb.options.verbose)
+      console.log(`bintrie: total size: ${btb.u8.length}, value table size: ${btb.vtb.u8.length}`);
 
     return bt;
   }
