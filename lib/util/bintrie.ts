@@ -57,6 +57,8 @@ Util.setCoder({ encoder: new u.TextEncoder(), decoder: new u.TextDecoder('utf-8'
 Util.setCoder({ encoder: new TextEncoder(), decoder: new TextDecoder('utf-8') });
 */
 
+const MaxKeyLength = 128;
+
 export function s2u8(coder: Coder, s: string): Uint8Array
 {
   return coder.encoder.encode(s);
@@ -342,6 +344,23 @@ export class BinTrie
         return undefined;
     }
     return undefined;
+  }
+
+  forEach(cb: (k: string, v: string) => void)
+  {
+    let keybuf = new Uint8Array(MaxKeyLength);
+    let keylen = 0;
+
+    let processNode = (len: number, byteOffset: number) => {
+        let iOffset = byteOffset >> 2;
+        let n = this.i32[iOffset];
+        byteOffset += 4;
+        for (let j = 0; j < n; j++)
+        {
+          keybuf[keylen++] = this.u8[byteOffset+j];
+        }
+      };
+    processNode(0, 4);
   }
 }
 

@@ -19,3 +19,5 @@ import { FilterExpr } from '../filterexpr/all';
 export { FilterExpr }
 import * as G from '../geo/all';
 export { G };
+import * as Emit from '../emit/all';
+export { Emit };
