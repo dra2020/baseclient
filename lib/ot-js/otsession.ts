@@ -73,12 +73,14 @@ export interface SessionUser
 {
 	id: string;
 	name: string;
+  twitterhandle: string;
 }
 
 export interface ActiveUser
 {
 	id: string;
 	name: string;
+  twitterhandle: string;
 	active: number;
 }
 
