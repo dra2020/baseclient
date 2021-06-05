@@ -10,6 +10,7 @@ import * as Poly from './poly';
 import * as PP from './polypack';
 import * as BB from './boundbox';
 import * as PR from './polyround';
+import { polyContainsPoint } from './pointinpoly';
 
 let _union: any = undefined;
 let anyPC: any = PC;
@@ -17,7 +18,7 @@ if (anyPC.union) _union = anyPC.union;
 if (anyPC.default && anyPC.default.union) _union = anyPC.default.union;
 if (_union === undefined) throw 'Unable to load union function from polygon-clipping';
 
-export interface WrappedPoly { box: BB.BoundBox, p: any };
+export interface WrappedPoly { f: any, box: BB.BoundBox, p: any };
 
 export interface WorkDone
 {
@@ -28,19 +29,6 @@ export interface WorkDone
 
 function featureCoords(feature: any): any
 {
-/*
-  if (feature.geometry !== undefined)
-  {
-    if (feature.geometry.packed !== undefined)
-      return PP.polyUnpack(feature.geometry.packed);
-    else
-      return feature.geometry.coordinates;
-  }
-  else if (feature.offset !== undefined)
-    return PP.polyUnpack(feature);
-  else
-    return feature;
-*/
   if (feature.geometry !== undefined)
   {
     if (feature.geometry.packed !== undefined)
@@ -85,7 +73,7 @@ class QuadLevel
   options: QuadOptions;
   level: number;
   children: QuadLevel[];
-  features: any[];
+  features: WrappedPoly[];
   box: BB.BoundBox;
   asyncUnion: any;
 
@@ -98,7 +86,7 @@ class QuadLevel
     {
       if (this.level >= options.maxDepth)
         throw `QuadTree: maximum depth of ${options.maxDepth} exceeded`;
-      this.features = features.map((wp: WrappedPoly) => wp.p);
+      this.features = features;
       this.children = null;
     }
     else
@@ -143,12 +131,33 @@ class QuadLevel
     return BB.boundboxIntersects(box, f.box);
   }
 
+  featureUnderCoord(coord: [ number, number ]): any
+  {
+    if (! BB.boundboxContains(this.box, coord[0], coord[1]))
+      return null;
+    if (this.features)
+    {
+      let wp = this.features.find(wp => polyContainsPoint(wp.p, coord[0], coord[1]));
+      return wp ? wp.f : null;
+    }
+    else
+    {
+      for (let i = 0; i < this.children.length; i++)
+      {
+        let f = this.children[i].featureUnderCoord(coord);
+        if (f)
+          return f;
+      }
+      return null;
+    }
+  }
+
   union(): any
   {
     if (this.asyncUnion == null)
     {
       if (this.children == null)
-        this.asyncUnion = unionPolys(this.features);
+        this.asyncUnion = unionPolys(this.features.map(f => f.p));
       else
         this.asyncUnion = unionPolys(this.children.map((q: QuadLevel) => q.union()));
     }
@@ -217,7 +226,7 @@ export class FsmQuadTree extends FSM.Fsm
       this.isempty = features.length == 0;
 
       // Compute BoundBox for each feature
-      let wrapped: WrappedPoly[] = features.map((f: any) => { return { box: BB.boundbox(f), p: featureCoords(f) } });
+      let wrapped: WrappedPoly[] = features.map((f: any) => { return { f: f, box: BB.boundbox(f), p: featureCoords(f) } });
 
       let box = BB.boundbox(col);
       this.quad = new QuadLevel(this.options, 0, box, wrapped);

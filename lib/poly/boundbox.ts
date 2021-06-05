@@ -100,3 +100,8 @@ export function boundboxIntersects(bb1: BoundBox, bb2: BoundBox): boolean
 {
   return !(bb1.left > bb2.right || bb1.right < bb2.left || bb1.top < bb2.bottom || bb1.bottom > bb2.top);
 }
+
+export function boundboxContains(bb: BoundBox, x: number, y: number): boolean
+{
+  return !(bb.left >= x || bb.right < x || bb.top <= y || bb.bottom > y);
+}

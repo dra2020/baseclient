@@ -113,6 +113,7 @@ export class GeoMultiCollection
 
   empty()
   {
+    this.all = { tag: 'all' };
     this.entries = {};
     this.hidden = {};
     this._onChange();
@@ -165,7 +166,8 @@ export class GeoMultiCollection
 
   _onChange(): void
   {
-    this.all = { tag: 'all' };
+    if (this.all.topo || this.all.col || this.all.map)
+      this.all = { tag: 'all' };
     this.stamp++;
   }
 
@@ -278,12 +280,17 @@ export class GeoMultiCollection
     if (id)
     {
       if (typeof id === 'string')
-        this.hidden[id] = true;
+      {
+        if (! this.hidden[id])
+        {
+          this.hidden[id] = true;
+          this._onChange();
+        }
+      }
       else if (Array.isArray(id))
-        id.forEach((i: string) => { this.hidden[i] = true })
+        id.forEach((i: any) => this.hide(i));
       else if (typeof id === 'object')
-        for (let p in id) if (id.hasOwnProperty(p)) this.hidden[p] = true;
-      this._onChange();
+        for (let p in id) if (id.hasOwnProperty(p)) this.hide(p);
     }
   }
 
@@ -292,12 +299,17 @@ export class GeoMultiCollection
     if (id)
     {
       if (typeof id === 'string')
-        delete this.hidden[id];
+      {
+        if (this.hidden[id])
+        {
+          delete this.hidden[id];
+          this._onChange();
+        }
+      }
       else if (Array.isArray(id))
-        id.forEach((i: string) => { delete this.hidden[i] })
+        id.forEach((i: any) => this.show(i))
       else if (typeof id === 'object')
-        for (let p in id) if (id.hasOwnProperty(p)) delete this.hidden[p];
-      this._onChange();
+        for (let p in id) if (id.hasOwnProperty(p)) this.show(p);
     }
   }
 
