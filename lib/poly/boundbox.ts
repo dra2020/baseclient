@@ -79,7 +79,7 @@ export function boundbox(poly: any, bbox?: BoundBox): BoundBox
     }
 
     // single point
-    else
+    else if (Array.isArray(poly) && poly.length >= 2)
       boundboxExtend(bbox, poly[0], poly[1]);
   }
 
@@ -89,6 +89,11 @@ export function boundbox(poly: any, bbox?: BoundBox): BoundBox
 export function boundboxPoly(bb: BoundBox): any
 {
   return [ [ [bb.left, bb.top], [bb.left, bb.bottom], [bb.right, bb.bottom], [bb.right, bb.top], [bb.left, bb.top] ] ];
+}
+
+export function boundboxEmpty(bb: BoundBox): boolean
+{
+  return !bb || bb.left === undefined || P.polyArea(boundboxPoly(bb)) == 0;
 }
 
 export function boundboxArea(poly: any): number
