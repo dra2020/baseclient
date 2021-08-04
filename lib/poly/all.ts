@@ -14,3 +14,4 @@ export * from './topo';
 export * from './selfintersect';
 export * from './shamos';
 export * from './pointinpoly';
+export * from './mapto';
