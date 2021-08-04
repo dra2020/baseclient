@@ -11,7 +11,7 @@ export function polyContainsPoint(poly: any, x: number, y: number): boolean
       if (bFound) return;
       let inside = false;
       let iEnd = iOffset + (nPoints - 1) * 2;
-      for (let i = iOffset, j = iEnd; i < iEnd; j = i, i += 2)
+      for (let i = iOffset, j = iEnd; i <= iEnd; j = i, i += 2)
       {
         let xi = b[i], yi = b[i+1];
         let xj = b[j], yj = b[j+1];
