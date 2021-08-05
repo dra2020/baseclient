@@ -33,21 +33,17 @@ function setLabels(c: G.GeoFeatureCollection): void
 //
 //  The return value is an object that maps the block feature ids to the district feature id.
 //
-
-export function polyMapTo(districts: G.GeoFeatureCollection, blocks: G.GeoFeatureCollection): any
+export function polyMapToByCentroid(districts: G.GeoFeatureCollection, centroids: G.GeoCentroidMap): any
 {
   let map: any = {};
-
-  // Cache labelx, labely if necessary
-  setLabels(blocks);
 
   // Cache district boundboxes for quick containment exclusion
   let bbDistricts: BB.BoundBox[] = districts.features.map(f => BB.boundbox(f));
 
   // Walk over blocks, mapping centroid to district
-  blocks.features.forEach(fBlock => {
-      let x = fBlock.properties.labelx;
-      let y = fBlock.properties.labely;
+  Object.keys(centroids).forEach(blockid => {
+      let x = centroids[blockid].x;
+      let y = centroids[blockid].y;
 
       let fIn: G.GeoFeature[] = [];
       districts.features.forEach((fDistrict: G.GeoFeature, i: number) => {
@@ -57,8 +53,21 @@ export function polyMapTo(districts: G.GeoFeatureCollection, blocks: G.GeoFeatur
         });
 
       if (fIn.length == 1)
-        map[fBlock.properties.id] = fIn[0].properties.id;
+        map[blockid] = fIn[0].properties.id;
     });
 
   return map;
+}
+
+export function polyMapTo(districts: G.GeoFeatureCollection, blocks: G.GeoFeatureCollection): any
+{
+  // Cache labelx, labely if necessary
+  setLabels(blocks);
+
+  let centroids: G.GeoCentroidMap = {};
+  blocks.features.forEach(f => {
+    centroids[f.properties.id] = { x: f.properties.labelx, y: f.properties.labely }
+    });
+
+  return polyMapToByCentroid(districts, centroids);
 }

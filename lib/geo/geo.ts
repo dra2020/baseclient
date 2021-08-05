@@ -6,6 +6,7 @@ export type GeoProperties = geojson.GeoJsonProperties;
 export type GeoFeature = geojson.Feature;
 export type GeoFeatureArray = GeoFeature[];
 export type GeoFeatureCollection = geojson.FeatureCollection;
+export type GeoCentroidMap = { [geoid: string]: { x: number, y: number } };
 
 export function geoEnsureID(col: GeoFeatureCollection): void
 {
