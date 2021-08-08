@@ -20,6 +20,11 @@ export function geoEnsureID(col: GeoFeatureCollection): void
     props.forEach(p => { if (prop === undefined && f.properties[p] !== undefined) prop = p; });
     if (prop)
       col.features.forEach(f => { f.properties.id = f.properties[prop] });
+    else
+    {
+      let n = 1;
+      col.features.forEach(f => { f.properties.id = String(n++) });
+    }
   }
 }
 
