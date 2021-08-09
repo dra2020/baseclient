@@ -6,9 +6,21 @@ export function polyContainsPoint(poly: any, x: number, y: number): boolean
   if (pp == null) return false;
   let bFound = false;
   let bInside = false;
+  let iCurPoly = -1;
+  let bCurInside = false;
 
   PP.polyPackEachRing(pp, (b: Float64Array, iPoly: number, iRing: number, iOffset: number, nPoints: number) => {
       if (bFound) return;
+      if (iRing == 0)
+      {
+        if (iCurPoly >= 0 && bCurInside)
+        {
+          bInside = true;
+          bFound = true;
+        }
+        iCurPoly = iPoly;
+        bCurInside = false;
+      }
       let inside = false;
       let iEnd = iOffset + (nPoints - 1) * 2;
       for (let i = iOffset, j = iEnd; i <= iEnd; j = i, i += 2)
@@ -20,10 +32,9 @@ export function polyContainsPoint(poly: any, x: number, y: number): boolean
         if (intersect) inside = !inside;
       }
       if (inside)
-      {
-        bFound = iRing > 0;   // if inside a hole, don't need to process further
-        bInside = iRing == 0; // not inside if inside a hole
-      }
+        bCurInside = iRing == 0; // not inside if inside a hole
     });
+  if (iCurPoly >= 0 && bCurInside)
+    bInside = true;
   return bInside;
 }
