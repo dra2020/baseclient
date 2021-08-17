@@ -349,7 +349,7 @@ export function featurePack(f: any, prepack?: PolyPack): any
     }
     return f.geometry.packed;
   }
-  else if (f.type && f.type === 'FeatureCollection' && f.features)
+  else if (f && f.type === 'FeatureCollection' && f.features)
   {
     // Allocate one large buffer
     let nFloats: number = 0;
