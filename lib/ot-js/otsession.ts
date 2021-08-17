@@ -124,7 +124,8 @@ export type LabelUpdate = { [name: string]: boolean|null }
 
 export interface SessionUpdateProps
 {
-	id: string;
+	id?: string;
+  ids?: string[];
 	deleted?: boolean;
 	published?: boolean;
 	official?: boolean;
