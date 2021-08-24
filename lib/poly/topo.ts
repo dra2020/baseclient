@@ -19,11 +19,16 @@ export type Topo = any;
 
 function getGEOID(f: any): string
 {
-  if (f.features && f.features.length) f = f.features[0];
-  else if (Array.isArray(f)) f = f[0];
+  if (f.features && f.features.length)
+    f = f.features[0];
+  else if (Array.isArray(f))
+    f = f[0];
+  else
+    return '';
   if (f.properties.id !== undefined) return 'id';
   if (f.properties.GEOID !== undefined) return 'GEOID';
   if (f.properties.GEOID10 !== undefined) return 'GEOID10';
+  return '';
 }
 
 export function topoFromCollection(col: any): Topo
@@ -33,10 +38,14 @@ export function topoFromCollection(col: any): Topo
   let prop = getGEOID(col);
   let objects: any = {};
   col.features.forEach((f: any) => objects[f.properties[prop]] = f);
-  let topo = TopoServer.topology(objects);
+  let topo: any;
+  if (Util.isEmpty(objects))
+    topo = { objects: objects }
+  else
+    topo = TopoServer.topology(objects);
   PP.featureRepack(col, save);
   if (col.datasets)
-    (topo as any).datasets = col.datasets;
+    topo.datasets = col.datasets;
   return topo;
 }
 
@@ -109,10 +118,11 @@ export function topoToFeature(topo: Topo, geoid: string): any
 export function topoToCollection(topo: Topo): any
 {
   let col: any = { type: 'FeatureCollection', features: [] };
-  Object.keys(topo.objects).forEach((geoid: string) => {
-      col.features.push(topoToFeature(topo, geoid));
-    });
-  if (topo.datasets) col.datasets = topo.datasets;
+  if (topo)
+    Object.keys(topo.objects).forEach((geoid: string) => {
+        col.features.push(topoToFeature(topo, geoid));
+      });
+  if (topo && topo.datasets) col.datasets = topo.datasets;
   return col;
 }
 

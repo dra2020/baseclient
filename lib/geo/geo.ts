@@ -38,7 +38,13 @@ export function geoCollectionToMap(col: GeoFeatureCollection): GeoFeatureMap
 
 export function geoMapToCollection(map: GeoFeatureMap): GeoFeatureCollection
 {
-  if (map == null || Util.countKeys(map) == 0) return null;
+  if (Util.countKeys(map) == 0) return null;
+  return geoMapToCollectionNonNull(map);
+}
+
+export function geoMapToCollectionNonNull(map: GeoFeatureMap): GeoFeatureCollection
+{
+  if (map == null) return null;
   let col: GeoFeatureCollection = { type: 'FeatureCollection', features: [] };
   Object.keys(map).forEach((geoid: string) => { col.features.push(map[geoid]) });
   return col;
@@ -51,11 +57,21 @@ export function geoCollectionToTopo(col: GeoFeatureCollection): Poly.Topo
   return topo;
 }
 
+export function geoCollectionToTopoNonNull(col: GeoFeatureCollection): Poly.Topo
+{
+  return geoCollectionToTopo(col);
+}
+
 export function geoTopoToCollection(topo: Poly.Topo): GeoFeatureCollection
 {
   let col = Poly.topoToCollection(topo);
   Poly.featurePack(col);
   return col;
+}
+
+export function geoTopoToCollectionNonNull(topo: Poly.Topo): GeoFeatureCollection
+{
+  return geoTopoToCollection(topo);
 }
 
 export interface GeoFeatureMap
@@ -183,9 +199,9 @@ export class GeoMultiCollection
     if (! e.col)
     {
       if (e.map)
-        e.col = geoMapToCollection(e.map);
+        e.col = geoMapToCollectionNonNull(e.map);
       else if (e.topo)
-        e.col = geoTopoToCollection(e.topo);
+        e.col = geoTopoToCollectionNonNull(e.topo);
     }
     return e.col;
   }
@@ -199,7 +215,7 @@ export class GeoMultiCollection
         e.map = geoCollectionToMap(e.col);
       else if (e.topo)
       {
-        e.col = geoTopoToCollection(e.topo);
+        e.col = geoTopoToCollectionNonNull(e.topo);
         e.map = geoCollectionToMap(e.col);
       }
     }
@@ -212,11 +228,11 @@ export class GeoMultiCollection
     if (! e.topo)
     {
       if (e.col)
-        e.topo = geoCollectionToTopo(e.col);
+        e.topo = geoCollectionToTopoNonNull(e.col);
       else if (e.map)
       {
-        e.col = geoMapToCollection(e.map);
-        e.topo = geoCollectionToTopo(e.col);
+        e.col = geoMapToCollectionNonNull(e.map);
+        e.topo = geoCollectionToTopoNonNull(e.col);
       }
     }
     return e.topo;
@@ -242,7 +258,7 @@ export class GeoMultiCollection
         this.all.col = this._col(this.nthEntry(0));
       else
         // Going from map to collection guarantees that any duplicates are removed
-        this.all.col = geoMapToCollection(this.allMap());
+        this.all.col = geoMapToCollectionNonNull(this.allMap());
     }
     return this.all.col;
   }
@@ -276,7 +292,7 @@ export class GeoMultiCollection
       if (n == 1)
         this.all.topo = this._topo(this.nthEntry(0));
       else
-        this.all.topo = geoCollectionToTopo(this.allCol());
+        this.all.topo = geoCollectionToTopoNonNull(this.allCol());
     }
     return this.all.topo;
   }
