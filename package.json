@@ -1,6 +1,6 @@
 {
   "name": "@dra2020/baseclient",
-  "version": "1.0.36",
+  "version": "1.0.37",
   "description": "Utility functions for Javascript projects.",
   "main": "dist/baseclient.js",
   "types": "./dist/all/all.d.ts",
@@ -40,6 +40,9 @@
     "webpack-cli": "^4.4.0"
   },
   "dependencies": {
+    "@dra2020/baseclient": "^1.0.36",
+    "@dra2020/baseserver": "^1.0.21",
+    "@dra2020/dra-types": "^1.8.26",
     "@dra2020/topojson-client": "^3.2.7",
     "@dra2020/topojson-server": "^3.0.103",
     "@dra2020/topojson-simplify": "^3.0.102",

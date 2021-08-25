@@ -38,22 +38,35 @@ export function polyMapToByCentroid(districts: G.GeoFeatureCollection, centroids
   let map: any = {};
 
   // Cache district boundboxes for quick containment exclusion
-  let bbDistricts: BB.BoundBox[] = districts.features.map(f => BB.boundbox(f));
+  let fs: G.GeoFeature[] = districts.features;
+  let bbDistricts: BB.BoundBox[] = fs.map(f => BB.boundbox(f));
+  let aDistricts: number[] = fs.map(f => P.polyArea(f));
 
   // Walk over blocks, mapping centroid to district
   Object.keys(centroids).forEach(blockid => {
       let x = centroids[blockid].x;
       let y = centroids[blockid].y;
 
-      let fIn: G.GeoFeature[] = [];
-      districts.features.forEach((fDistrict: G.GeoFeature, i: number) => {
+      let fIn: number[] = [];
+      fs.forEach((fDistrict: G.GeoFeature, i: number) => {
           if (BB.boundboxContains(bbDistricts[i], x, y))
             if (polyContainsPoint(fDistrict, x, y))
-              fIn.push(fDistrict);
+              fIn.push(i);
         });
 
       if (fIn.length == 1)
-        map[blockid] = fIn[0].properties.id;
+        map[blockid] = fs[fIn[0]].properties.id;
+      else if (fIn.length > 1)
+      {
+        // Pick district with smallest area since some times we get malformed content that doesn't
+        // reflect holes in districts when one is nested in another. So theory is smaller district
+        // is a hole in containing larger one(s).
+        let iLow = fIn[0];
+        for (let i = 1; i < fIn.length; i++)
+          if (aDistricts[fIn[i]] < aDistricts[iLow])
+            iLow = fIn[i];
+        map[blockid] = fs[iLow].properties.id;
+      }
     });
 
   return map;
