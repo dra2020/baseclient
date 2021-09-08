@@ -683,6 +683,7 @@ export function featureRewind(poly: any): any
       let d = Util.depthof(poly.geometry.coordinates);
       if (d === 4) closePoly(poly.geometry.coordinates);
       else if (d === 5) poly.geometry.coordinates.forEach(closePoly);
+      poly.geometry.type = d === 4 ? 'Polygon' : 'MultiPolygon';
     }
     return poly;
   }
