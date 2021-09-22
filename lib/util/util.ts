@@ -264,12 +264,14 @@ export interface EqOptions
 {
   omitKey?: { [key: string]: boolean },
   unorderedArrays?: boolean,
-  emptyStringIsNull: boolean,
+  emptyStringIsNull?: boolean,
+  epsilon?: number,
 }
 
 function exactEqual(o1: any, o2: any, options?: EqOptions): boolean
 {
   if (o1 === o2) return true;
+  if (options && options.epsilon && typeof o1 === 'number' && typeof o2 === 'number' && Math.abs(o1-o2) < options.epsilon) return true;
   if (options && options.emptyStringIsNull)
     if ((o1 == null && o2 == '') || (o2 == null && o1 == ''))
       return true;
