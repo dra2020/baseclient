@@ -766,3 +766,28 @@ function twoTimesArea(x2: number, x1: number, y2: number, y1: number): number
   return (x2 - x1) * (y2 + y1);
 }
 
+function badCoord(c: number): boolean
+{
+  return isNaN(c) || c > 360 || c < -360;
+}
+
+export function polyBadCoordinates(f: any): boolean
+{
+  if (f.type === 'FeatureCollection' && f.features)
+  {
+    for (let i = 0; i < f.features.length; i++)
+      if (polyBadCoordinates(f.features[i])) return true;
+    return false;
+  }
+
+  let pp = polyNormalize(f);
+  let bad = false;
+  if (pp)
+  {
+    PP.polyPackEachPoint(pp, (b: Float64Array, iPoly: number, iRing: number, iOffset: number) => {
+        if (bad) return;
+        bad = badCoord(b[iOffset]) || badCoord(b[iOffset+1]);
+      });
+  }
+  return bad;
+}
