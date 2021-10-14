@@ -14,6 +14,7 @@ import * as Q from './quad';
 import * as PP from './polypack';
 import * as PL from './polylabel';
 import { selfIntersectFast } from './shamos';
+import { polyContainsPoint } from './pointinpoly';
 
 export type Topo = any;
 
@@ -193,6 +194,24 @@ function bigTimeString(ms: number): string
   return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
 }
 
+function intpt(f: any): { x: number, y: number }
+{
+  let x = 0, y = 0;
+  for (let p of ['INTPTLON20','INTPTLON10','INTPTLON','labelx'])
+    if (f.properties[p] && !isNaN(Number(f.properties[p])))
+    {
+      x = Number(f.properties[p]);
+      break;
+    }
+  for (let p of ['INTPTLAT20','INTPTLAT10','INTPTLAT','labely'])
+    if (f.properties[p] && !isNaN(Number(f.properties[p])))
+    {
+      y = Number(f.properties[p]);
+      break;
+    }
+  return {x: x, y: y};
+}
+
 export interface SimplifyOptions
 {
   minArea?: number,
@@ -298,6 +317,16 @@ export function topoSimplifyCollection(col: any, options?: SimplifyOptions): any
             {
               keepArcs(topo, oOld.arcs, keepweight);
               nBad++;
+            }
+            else
+            {
+              let {x,y} = intpt(f);
+              if (x && y && !polyContainsPoint(pp, x, y))
+              {
+                keepArcs(topo, oOld.arcs, keepweight);
+                nBad++;
+                log(`topoSimplifyCollection: ${f.properties.id}: increasing feature fidelity because of intpt problem`);
+              }
             }
           }
         }
