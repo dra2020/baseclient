@@ -184,7 +184,7 @@ function misMatchObject(o1: any, o2: any): boolean
   return (o1.type === 'MultiPolygon') ? misMatchMulti(o1.arcs, o2.arcs) : misMatchPoly(o1.arcs, o2.arcs);
 }
 
-const MAX_TRIES = 25;
+const MAX_TRIES = 30;
 
 function bigTimeString(ms: number): string
 {
@@ -215,13 +215,14 @@ function intpt(f: any): { x: number, y: number }
 export interface SimplifyOptions
 {
   minArea?: number,
+  log?: boolean,
 }
 
 const DefaultSimplifyOptions: SimplifyOptions = { minArea: 500 };
 
-function log(s: string): void
+function log(emitlog: boolean, s: string): void
 {
-  //console.log(s);
+  if (emitlog) console.log(s);
 }
 
 //
@@ -248,10 +249,10 @@ export function topoSimplifyCollection(col: any, options?: SimplifyOptions): any
   let elapsedTotal = new Util.Elapsed();
   let elapsed = new Util.Elapsed();
   let topo = topoFromCollection(col);
-  log(`topoSimplifyCollection: fromCollection: ${Math.round(elapsed.ms())}ms`);
+  log(options.log, `topoSimplifyCollection: fromCollection: ${Math.round(elapsed.ms())}ms`);
   elapsed.start();
   topo = TopoSimplify.presimplify(topo, TopoSimplify['sphericalTriangleArea']);
-  log(`topoSimplifyCollection: presimplify: ${Math.round(elapsed.ms())}ms`);
+  log(options.log, `topoSimplifyCollection: presimplify: ${Math.round(elapsed.ms())}ms`);
   elapsed.start();
 
   // Keep iterating on removing simplification from degenerate shapes
@@ -313,6 +314,7 @@ export function topoSimplifyCollection(col: any, options?: SimplifyOptions): any
           if (! bDecided)
           {
             let pp = PP.polyPackTopoArcs(testtopo, arcs);
+            P.polyRewindRings(pp);
             if (selfIntersectFast(pp))
             {
               keepArcs(topo, oOld.arcs, keepweight);
@@ -321,23 +323,25 @@ export function topoSimplifyCollection(col: any, options?: SimplifyOptions): any
             else
             {
               let {x,y} = intpt(f);
-              if (x && y && !polyContainsPoint(pp, x, y))
+              let d = PL.polyDistance(pp, x, y);
+              if (d < 0.00001)  // d is negative if outside the polygon, so that qualifies here
               {
-                keepArcs(topo, oOld.arcs, keepweight);
-                nBad++;
-                log(`topoSimplifyCollection: ${f.properties.id}: increasing feature fidelity because of intpt problem`);
+                keepTiny.set(f, f);
+                keepArcs(topo, oOld.arcs, 0); // keeps all points to avoid reprocessing these tiny shapes
+                nBad++, nTiny++;
+                log(options.log, `topoSimplifyCollection: ${f.properties.id}: increasing feature fidelity because intpt dist is ${d}`);
               }
             }
           }
         }
       });
-    log(`topoSimplifyCollection: pass ${nTries}: ${nBad} (${nTiny} tiny) of ${col.features.length} features are degenerate`);
+    log(options.log, `topoSimplifyCollection: pass ${nTries}: ${nBad} (${nTiny} tiny) of ${col.features.length} features are degenerate`);
 
     // If not making progress, keep more points
     if (nBad >= nBadLast)
     {
       keepweight /= 10;
-      log(`topoSimplifyCollection: pass ${nTries}: reducing weight limit to ${keepweight}`);
+      log(options.log, `topoSimplifyCollection: pass ${nTries}: reducing weight limit to ${keepweight}`);
     }
     nBadLast = nBad;
 
@@ -353,7 +357,7 @@ export function topoSimplifyCollection(col: any, options?: SimplifyOptions): any
     nTries++;
   }
 
-  log(`topoSimplifyCollection: total elapsed time: ${bigTimeString(elapsedTotal.ms())}`);
+  log(options.log, `topoSimplifyCollection: total elapsed time: ${bigTimeString(elapsedTotal.ms())}`);
 
   return col;
 }

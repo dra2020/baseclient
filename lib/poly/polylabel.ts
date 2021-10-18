@@ -12,6 +12,78 @@ interface PolyLabelResult
 }
 
 //
+// polyDistance: return (smallest) distance to polygon edge.
+//    Positive value indicates point is in poly, negative indicates point is outside.
+//
+
+export function polyDistance(poly: any, x: number, y: number): number
+{
+  let pp = P.polyNormalize(poly);
+  if (pp == null) return 0;
+
+  // First find if it is contained in one of the outer polygons, or outside all outer polygons
+  let iContaining = -1;
+  let maxOutside = - Infinity;
+  let minInside = Infinity;
+  let noholes = true;
+  PP.polyPackEachRing(pp, (b: Float64Array, iPoly: number, iRing: number, iOffset: number, nPoints: number) => {
+      // If we have determined we are inside this polygon, keep track of whether it has holes
+      if (iContaining == iPoly && iRing > 0)
+        noholes = false;
+      // Don't process rings
+      if (iRing > 0) return;
+      // OK, get distance
+      let forEachPointPair = (iter: any) => {
+          PP.polyPackEachRing(pp, (b: Float64Array, iInteriorPoly: number, iRing: number, iOffset: number, nPoints: number) => {
+              if (iRing || iInteriorPoly != iPoly) return;
+              let iFirst = iOffset;
+              let iLast = iOffset + nPoints * 2;
+              let iSecond = iLast - 2;
+              for (; iFirst < iLast; iSecond = iFirst, iFirst += 2)
+                iter(b[iFirst], b[iFirst+1], b[iSecond], b[iSecond+1]);
+            });
+        };
+      let dist = pointToPolygonDist(x, y, forEachPointPair);
+      // If inside, is it closest inside (deal with multipolygons that self-contain - think filled donut)
+      if (dist > 0 && dist < minInside)
+      {
+        iContaining = iPoly;
+        minInside = dist;
+        noholes = true;
+      }
+      else if (dist < 0)
+        maxOutside = Math.max(maxOutside, dist);
+    });
+  if (iContaining < 0)
+    return maxOutside;
+  if (noholes)
+    return minInside;
+
+  // OK, now need to worry about holes in the polygon it is contained in
+  PP.polyPackEachRing(pp, (b: Float64Array, iPoly: number, iRing: number, iOffset: number, nPoints: number) => {
+      // Only want to look at the holes for the containing polygon
+      if (iPoly != iContaining || iRing == 0) return;
+      // Compute distance to those holes
+      let forEachPointPair = (iter: any) => {
+          PP.polyPackEachRing(pp, (b: Float64Array, iInteriorPoly: number, iRing: number, iOffset: number, nPoints: number) => {
+              if (iInteriorPoly != iContaining || iRing == 0) return;
+              let iFirst = iOffset;
+              let iLast = iOffset + nPoints * 2;
+              let iSecond = iLast - 2;
+              for (; iFirst < iLast; iSecond = iFirst, iFirst += 2)
+                iter(b[iFirst], b[iFirst+1], b[iSecond], b[iSecond+1]);
+            });
+        };
+      // Negate distance since dealing with holes
+      let dist = - pointToPolygonDist(x, y, forEachPointPair);
+      // We take the min to either get a negative value (inside hole) or a smaller positive value
+      // (outside hole but close to hole boundary).
+      minInside = Math.min(minInside, dist);
+    });
+  return minInside;
+}
+
+//
 // polyLabel: given polygon, return contained point furthest from any edge, and that distance
 //
 
@@ -142,8 +214,8 @@ class Cell
 // signed distance from point to polygon outline (negative if point is outside)
 function pointToPolygonDist(x: number, y: number, forEachPointPair: any): number
 {
-  let inside: boolean = false;
-  let minDistSq: number = Infinity;
+  let inside = false;
+  let minDistSq = Infinity;
 
   forEachPointPair((ax: number, ay: number, bx: number, by: number) => {
       if ((ay > y !== by > y) && (x < (bx - ax) * (y - ay) / (by - ay) + ax))
