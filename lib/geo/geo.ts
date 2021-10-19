@@ -8,16 +8,40 @@ export type GeoFeatureArray = GeoFeature[];
 export type GeoFeatureCollection = geojson.FeatureCollection;
 export type GeoCentroidMap = { [geoid: string]: { x: number, y: number } };
 
-export function geoEnsureID(col: GeoFeatureCollection): void
+export interface NormalizeOptions
 {
+  joinPolygons?: boolean,
+  checkRewind?: boolean,
+  ensureID?: boolean,
+}
+const NormalizeAll: NormalizeOptions = { joinPolygons: true, checkRewind: true, ensureID: true };
+
+// set the canonical 'id' property from the best property value.
+// if joinPolygons is true, we do not enforce uniqueness.
+//
+
+export function geoEnsureID(col: GeoFeatureCollection, options?: NormalizeOptions): void
+{
+  options = Util.shallowAssignImmutable({}, options);
+
   let prop: string;
-  const props = ['id', 'GEOID', 'GEOID10', 'GEOID20', 'GEOID30' ];
+  const props = [ 'id', 'GEOID', 'GEOID10', 'GEOID20', 'GEOID30', 'DISTRICT', 'DISTRICTNO', 'DISTRICTNAME' ];
 
   if (col && col.features && col.features.length > 0)
   {
     let f = col.features[0];
-    if (f.properties.id !== undefined) return;
-    props.forEach(p => { if (prop === undefined && f.properties[p] !== undefined) prop = p; });
+    if (f.properties.id !== undefined) return;  // short-cut - assume if 'id' is set, we're all good.
+    props.forEach(p => {
+        if (prop === undefined)
+          if (f.properties[p] !== undefined)
+            prop = p;
+          else
+          {
+            p = p.toLowerCase();
+            if (f.properties[p] !== undefined)
+              prop = p
+          }
+      });
     if (prop)
       col.features.forEach(f => { f.properties.id = f.properties[prop] });
     else
@@ -26,6 +50,94 @@ export function geoEnsureID(col: GeoFeatureCollection): void
       col.features.forEach(f => { f.properties.id = String(n++) });
     }
   }
+}
+
+export function geoNormalizeFeature(f: any, options?: NormalizeOptions): GeoFeature
+{
+  options = Util.shallowAssignImmutable({}, options);
+
+  if (f && f.geometry && f.geometry.type === 'MultiPolygon' && f.geometry.coordinates)
+  {
+    let multiPoly = f.geometry.coordinates;
+
+    // Convert degenerate MultiPolygon to Polygon
+    if (multiPoly.length == 1)
+    {
+      f.geometry.type = 'Polygon';
+      f.geometry.coordinates = multiPoly[0];
+    }
+  }
+  else if (f && f.geometry && f.geometry.type === 'Point' && f.geometry.coordinates)
+  {
+    while (Array.isArray(f.geometry.coordinates[0]))
+      f.geometry.coordinates = f.geometry.coordinates[0];
+  }
+  else if (options.checkRewind)
+    // Various tools do not guarantee valid GeoJSON winding rules. Verify it since internal processing
+    // assumes it is correct.
+    Poly.featureRewind(f);
+
+  return f;
+}
+
+function onlyPolygons(col: GeoFeatureCollection): boolean
+{
+  if (col && Array.isArray(col.features))
+    for (let i = 0; i < col.features.length; i++)
+    {
+      let f = col.features[i];
+      if (f.geometry && f.geometry.type === 'MultiPolygon')
+        return false;
+    }
+
+  return true;
+}
+
+function mergePolygon(f1: any, f2: any): any
+{
+  if (!f1) return f2;
+  if (!f2) return f1;
+  if (f1.geometry.type !== 'Polygon' && f1.geometry.type !== 'MultiPolygon')
+    return f1;
+  if (f2.geometry.type !== 'Polygon' && f2.geometry.type !== 'MultiPolygon')
+    return f2;
+  if (f1.geometry.type === 'Polygon')
+  {
+    f1.geometry.type = 'MultiPolygon';
+    if (f2.geometry.type === 'Polygon')
+      f1.geometry.coordinates = [ f1.geometry.coordinates, f2.geometry.coordinates ];
+    else
+      f1.geometry.coordinates = [ f1.geometry.coordinates, ...f2.geometry.coordinates ];
+  }
+  else
+  {
+    if (f2.geometry.type === 'Polygon')
+      f1.geometry.coordinates.push(f2.geometry.coordinates);
+    else
+      f1.geometry.coordinates = [...f1.geometry.coordinates, ...f2.geometry.coordinates];
+  }
+  return f1;
+}
+
+export function geoNormalizeCollection(col: GeoFeatureCollection, options?: NormalizeOptions): GeoFeatureCollection
+{
+  options = Util.shallowAssignImmutable(NormalizeAll, options);
+
+  // Normalize individual features
+  if (col && Array.isArray(col.features)) col.features.forEach((f: GeoFeature) => geoNormalizeFeature(f, options));
+
+  // Ensure ID
+  if (options.ensureID)
+    geoEnsureID(col, options);
+
+  // Merge polygons into multi-polygons based on id?
+  if (options.ensureID && options.joinPolygons && onlyPolygons(col))
+  {
+    let map: GeoFeatureMap = {};
+    col.features.forEach(f => { let id = f.properties.id; map[id] = mergePolygon(map[id], f) });
+    col.features = Object.values(map);
+  }
+  return col;
 }
 
 export function geoCollectionToMap(col: GeoFeatureCollection): GeoFeatureMap
