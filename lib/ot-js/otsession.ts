@@ -24,7 +24,8 @@ export const FilterTrash: number = 4;
 export const FilterPublic: number = 5;
 export const FilterOfficial: number = 6;
 export const FilterCOI: number = 7;
-export const FilterCount: number = 8;
+export const FilterMyGroups: number = 8;
+export const FilterCount: number = 9;
 export type Filter = number;
 
 // Permissions
@@ -117,6 +118,7 @@ export interface SessionProps
   expunged?: boolean;
   expungeDate?: string;
   xprops?: { [prop: string]: string };
+  groups: any;  // DT.GroupsMapIndex
 }
 
 // True to add, False to remove
