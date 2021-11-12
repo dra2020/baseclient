@@ -119,6 +119,7 @@ export interface SessionProps
   expungeDate?: string;
   xprops?: { [prop: string]: string };
   groups: any;  // DT.GroupsMapIndex
+  xid?: string; // external ID
 }
 
 // True to add, False to remove
@@ -127,6 +128,7 @@ export type LabelUpdate = { [name: string]: boolean|null }
 export interface SessionUpdateProps
 {
 	id?: string;
+  xid?: string;
   ids?: string[];
 	deleted?: boolean;
 	published?: boolean;
