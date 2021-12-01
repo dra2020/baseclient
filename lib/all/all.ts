@@ -21,3 +21,5 @@ import * as G from '../geo/all';
 export { G };
 import * as Emit from '../emit/all';
 export { Emit };
+import * as CSV from '../csv/all';
+export { CSV };
