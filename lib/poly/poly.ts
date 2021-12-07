@@ -803,11 +803,13 @@ export function featureRewind(f: any, options?: RewindOptions): any
     {
       f.geometry.type = 'Polygon';
       f.geometry.coordinates = f.geometry.coordinates[0];
+      d = 4;
     }
   }
 
   // OK, now go through each ring
   let polys = f.geometry.coordinates;
+  if (d == 4) polys = [polys];
   windings = polyRingWindings(f);
   windings.forEach((w: Winding) => {
       let good = !misWound(w);
