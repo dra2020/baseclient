@@ -65,28 +65,7 @@ function ringsCancel(outerPoly: any, innerRing: any): boolean
 
 function correctGeometry(f: any): any
 {
-  if (f && f.geometry && f.geometry.type === 'MultiPolygon' && f.geometry.coordinates)
-  {
-    let multiPoly = f.geometry.coordinates;
-
-    // Convert degenerate MultiPolygon to Polygon
-    if (multiPoly.length == 1)
-    {
-      f.geometry.type = 'Polygon';
-      f.geometry.coordinates = multiPoly[0];
-    }
-  }
-
-  if (f && f.geometry && f.geometry.type === 'Point' && f.geometry.coordinates)
-  {
-    while (Array.isArray(f.geometry.coordinates[0]))
-      f.geometry.coordinates = f.geometry.coordinates[0];
-  }
-  else
-    // TopoJSON does not guarantee proper winding order which messes up later processing. Fix it.
-    P.featureRewind(f);
-
-  return f;
+  return P.featureRewind(f, { validateHoles: false } );
 }
 
 export function topoContiguity(topo: Topo): any

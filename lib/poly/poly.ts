@@ -667,30 +667,165 @@ function closePoly(poly: any): any
   return poly;
 }
 
+function closeFeature(f: any): void
+{
+  let d = Util.depthof(f.geometry.coordinates);
+  if (d === 4) closePoly(f.geometry.coordinates);
+  if (d === 5) f.geometry.coordinates.forEach(closePoly);
+}
+
+export interface RewindOptions
+{
+  validateHoles?: boolean,
+  validateClose?: boolean,
+  canonical?: boolean,
+}
+
+function canonicalPoint(f: any, options: RewindOptions): any
+{
+  if (options.canonical)
+    if (f && f.geometry && f.geometry.type === 'Point' && f.geometry.coordinates)
+      while (Array.isArray(f.geometry.coordinates[0]))
+        f.geometry.coordinates = f.geometry.coordinates[0];
+  return f;
+}
+
+//
+// polyRingWindings: Return depth-first array of winding of each ring in the feature.
+//    value < 0: CW
+//    value > 0: CCW
+//
+
+interface Winding { iPoly: number, iRing: number, direction: number };
+
+function misWound(w: Winding): boolean
+{
+  return (((w.iRing == 0) && (w.direction > 0)) || ((w.iRing > 0) && (w.direction < 0)));
+}
+
+export function polyRingWindings(poly: any): Winding[]
+{
+  let windings: Winding[] = [];
+
+  let pp = polyNormalize(poly);
+  if (pp == null || pp.buffer == null) return windings;
+
+  PP.polyPackEachRing(pp, (b: Float64Array, iPoly: number, iRing: number, iOffset: number, nPoints: number) =>
+  {
+    const iStart = iOffset;
+    const iEnd = iStart + (nPoints * 2) - 2;
+
+    // Determine the winding order of the ring
+    let direction = 0;
+
+    // Start at the second point
+    iOffset += 2;
+    for (; iOffset <= iEnd; iOffset += 2)
+    {
+      // The previous point
+      let jOffset = iOffset - 2;
+
+      // Sum over the edges
+      direction += twoTimesArea(b[iOffset], b[jOffset], b[iOffset+1], b[jOffset+1]);
+    }
+    
+    // Implicitly close the ring, if necessary
+    if (nPoints > 2 && (b[iStart] != b[iEnd] || b[iStart + 1] != b[iEnd + 1]))
+      direction += twoTimesArea(b[iStart], b[iEnd], b[iStart + 1], b[iEnd + 1]);
+
+    windings.push({ iPoly: iPoly, iRing: iRing, direction: direction });
+  });
+  return windings;
+}
+
+
 // This mutates the passed in feature to ensure it is correctly wound
 // For convenience, passed back the value provided.
-export function featureRewind(poly: any): any
+//
+export function featureRewind(f: any, options?: RewindOptions): any
 {
-  let pp = polyNormalize(poly);
-  if (pp == null) return null;
-  polyRewindRings(pp);
-  if (poly.type === 'Feature')
+  options = Util.shallowAssignImmutable({ validateHoles: true, validateClose: true, canonical: true }, options);
+
+  if (!f) return null;
+
+  // Has to be an unpacked feature
+  if (f.type !== 'Feature') throw 'featureRewind: must be a valid GeoJSON feature';
+  if (!f.geometry || f.geometry.packed) throw 'featureRewind: only valid on unpacked features';
+
+  // Non polygons are simpler
+  if (f.geometry.type !== 'Polygon' && f.geometry.type !== 'MultiPolygon') return canonicalPoint(f, options);
+
+  // Make sure polygon is closed (first === last)
+  if (options.validateClose) closeFeature(f);
+
+  // Check if multi-polygon is really polygon with holes
+  // Only applies to multi-polygons with no holes
+  let d = Util.depthof(f.geometry.coordinates);
+  let windings = polyRingWindings(f);
+  if (options.validateHoles && d === 5 && windings.length > 1)
   {
-    if (poly.geometry.packed !== pp)
+    // First winding needs to be correct so we have a poly to add holes to
+    if (!misWound(windings[0]))
     {
-      poly.geometry.coordinates = PP.polyUnpack(pp);
-      // Also make sure first === last coordinate
-      let d = Util.depthof(poly.geometry.coordinates);
-      if (d === 4) closePoly(poly.geometry.coordinates);
-      else if (d === 5) poly.geometry.coordinates.forEach(closePoly);
-      poly.geometry.type = d === 4 ? 'Polygon' : 'MultiPolygon';
+      // Flatten everything out and then rebuild hole structure based on windings
+      let nHoles = 0; windings.forEach(w => { nHoles += w.iRing ? 1 : 0 });
+      if (nHoles)
+      {
+        let c: any[] = [];
+        f.geometry.coordinates.forEach((poly: any) => {
+            poly.forEach((ring: any) => {
+                c.push([ring]);
+              });
+          });
+        f.geometry.coordinates = c;
+        windings = polyRingWindings(f);
+      }
+
+      let polys = f.geometry.coordinates;
+      let iPoly = 0;
+      for (let iWinding = 0; iWinding < windings.length; iWinding++)
+      {
+        let good = !misWound(windings[iWinding]);
+        if (good)
+          iPoly = iWinding;
+        else
+        {
+          // If hole, add to previous poly
+          polys[iPoly].push(polys[iWinding][0]);
+          polys[iWinding] = null;
+        }
+      }
+      f.geometry.coordinates = polys.filter((p: any) => p != null);
     }
-    return poly;
+
+    // Degenerate multi-polygon
+    if (f.geometry.coordinates.length == 1)
+    {
+      f.geometry.type = 'Polygon';
+      f.geometry.coordinates = f.geometry.coordinates[0];
+    }
   }
-  else if (poly === pp)
-    return pp;
-  else
-    return PP.polyUnpack(pp);
+
+  // OK, now go through each ring
+  let polys = f.geometry.coordinates;
+  windings = polyRingWindings(f);
+  windings.forEach((w: Winding) => {
+      let good = !misWound(w);
+      if (!good)
+      {
+        let ring = polys[w.iPoly][w.iRing];
+        let iFront = 0;
+        let iBack = ring.length-1;
+        for (; iFront < iBack; iFront++, iBack--)
+        {
+          let tmp = ring[iFront];
+          ring[iFront] = ring[iBack];
+          ring[iBack] = tmp;
+        }
+      }
+    });
+
+  return f;
 }
 
 //

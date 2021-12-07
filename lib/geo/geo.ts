@@ -56,25 +56,7 @@ export function geoNormalizeFeature(f: any, options?: NormalizeOptions): GeoFeat
 {
   options = Util.shallowAssignImmutable({}, options);
 
-  if (f && f.geometry && f.geometry.type === 'MultiPolygon' && f.geometry.coordinates)
-  {
-    let multiPoly = f.geometry.coordinates;
-
-    // Convert degenerate MultiPolygon to Polygon
-    if (multiPoly.length == 1)
-    {
-      f.geometry.type = 'Polygon';
-      f.geometry.coordinates = multiPoly[0];
-    }
-  }
-  else if (f && f.geometry && f.geometry.type === 'Point' && f.geometry.coordinates)
-  {
-    while (Array.isArray(f.geometry.coordinates[0]))
-      f.geometry.coordinates = f.geometry.coordinates[0];
-  }
-  else if (options.checkRewind)
-    // Various tools do not guarantee valid GeoJSON winding rules. Verify it since internal processing
-    // assumes it is correct.
+  if (options.checkRewind)
     Poly.featureRewind(f);
 
   return f;
