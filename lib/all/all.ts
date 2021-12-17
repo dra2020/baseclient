@@ -23,3 +23,5 @@ import * as Emit from '../emit/all';
 export { Emit };
 import * as CSV from '../csv/all';
 export { CSV };
+import * as Colors from '../colors/colors';
+export { Colors };
