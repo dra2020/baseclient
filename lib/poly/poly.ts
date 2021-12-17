@@ -749,8 +749,8 @@ export function featureRewind(f: any, options?: RewindOptions): any
   if (!f) return null;
 
   // Has to be an unpacked feature
-  if (f.type !== 'Feature') throw 'featureRewind: must be a valid GeoJSON feature';
-  if (!f.geometry || f.geometry.packed) throw 'featureRewind: only valid on unpacked features';
+  if (f.type !== 'Feature') return f;
+  if (!f.geometry || f.geometry.packed) return f;
 
   // Non polygons are simpler
   if (f.geometry.type !== 'Polygon' && f.geometry.type !== 'MultiPolygon') return canonicalPoint(f, options);
