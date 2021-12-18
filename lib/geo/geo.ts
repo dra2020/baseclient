@@ -106,7 +106,10 @@ export function geoNormalizeCollection(col: GeoFeatureCollection, options?: Norm
   options = Util.shallowAssignImmutable(NormalizeAll, options);
 
   // Normalize individual features
-  if (col && Array.isArray(col.features)) col.features.forEach((f: GeoFeature) => geoNormalizeFeature(f, options));
+  if (col && Array.isArray(col.features))
+    col.features = col.features.filter((f: any) => f.properties && f.geometry && f.geometry.coordinates);
+  if (col && Array.isArray(col.features))
+    col.features.forEach((f: GeoFeature) => geoNormalizeFeature(f, options));
 
   // Ensure ID
   if (options.ensureID)
