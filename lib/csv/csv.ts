@@ -87,6 +87,10 @@ export class ParseOne
         this.quote = 0;
         this.nwhite = 0;
       }
+      else if (this.quote)
+      {
+        this.tok[this.toklen++] = c;
+      }
       else if (c === Comma || c === Pipe)
       {
         this.force = true;
