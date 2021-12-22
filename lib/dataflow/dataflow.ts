@@ -15,67 +15,57 @@
 
 interface UseItem
 {
-  name: string,
   df: DataFlow,
   id?: any,
 }
 
 export class DataFlow
 {
-  uniquename: number;
-  usesList: { [name: string]: UseItem };
+  usesList: UseItem[];
 
   constructor()
   {
-    this.usesList = {};
-    this.uniquename = 1;
+    this.usesList = [];
   }
 
   // override in subclass
-  ready(): boolean { return this.usesReady() }
   id(): any { return null }
   value(): any { return null }
 
-  uses(df: DataFlow, name?: string): void
+  uses(df: DataFlow): void
   {
-    if (!name) name = `_df_${this.uniquename++}`;
-    this.usesList[name] = { name: name, df: df };
-  }
-
-  find(name: string): DataFlow
-  {
-    let ui = this.usesList[name];
-    return ui ? ui.df : undefined;
-  }
-
-  findValue(name: string): any
-  {
-    let df = this.find(name);
-    return df ? df.value() : undefined;
-  }
-
-  usesReady(): boolean
-  {
-    let isready = true;
-    Object.values(this.usesList).forEach((ui: UseItem) => { if (!ui.df.ready()) isready = false });
-    return isready;
+    this.usesList.push({ df: df });
   }
 
   usesStale(): boolean
   {
     let isstale = false;
-    Object.values(this.usesList).forEach((ui: UseItem) => { if (ui.df.id !== ui.df.id()) isstale = true });
+    this.usesList.forEach(ui => { if (ui.id !== ui.df.id()) isstale = true });
     return isstale;
   }
 
   usesRemember(): void
   {
-    Object.values(this.usesList).forEach((ui: UseItem) => { ui.df.id = ui.df.id() });
+    this.usesList.forEach(ui => { ui.id = ui.df.id() });
+  }
+
+  ifcompute(): void
+  {
+    if (this.usesStale())
+    {
+      this.usesRemember();
+      this.compute();
+    }
+  }
+
+  compute(): void
+  {
   }
 }
 
-// Takes callback that, when ready, returns non-null. The return value is both the value and the id.
-export class DataFlowNonNull extends DataFlow
+// Takes callback that, eventually, returns non-null. The return value is both the value and the id.
+// Once the value returns non-null, the callback is never called again.
+export class DataFlowCallback extends DataFlow
 {
   _value: any;
   _cb: () => any;
@@ -86,21 +76,6 @@ export class DataFlowNonNull extends DataFlow
     this._cb = cb;
   }
 
-  ready(): boolean
-  {
-    // Allow chaining
-    if (!this.usesReady())
-      return false;
-
-    // Real core semantics, with chaining on stale
-    if (!this._value || this.usesStale())
-    {
-      this._value = this._cb();
-      if (this._value) this.usesRemember();
-    }
-    return !!this._value;
-  }
-
-  id(): any { return this.ready(), this._value }
-  value(): any { return this.ready(), this._value }
+  id(): any { if (!this._value) this._value = this._cb(); return this._value }
+  value(): any { return this.id() }
 }
