@@ -2,21 +2,20 @@
 // DataFlow: mechanism for setting up a data-flow dependency graph that gets computed on demand.
 //
 //  Semantics are these:
-//    1. The simplest "atomic" DataFlow object just has an id() and a value(). The id() is used to check for exact
-//       equivalence when determining if any dependents need to be recomputed. id() and value() might be the same
-//       for something that just creates a new whole object when recomputed. In other cases, id() might represent a
-//       hash or changestamp/timestamp that is distinct from the value(). The value may or may not be "ready" as well.
-//       If the value is not "ready", no dependents can be computed.
+//    1. The simplest "atomic" DataFlow object just has an id(). The id() is used to check for exact
+//       equivalence when determining if any dependents need to be recomputed.
 //    2. A DataFlow object can record that it "uses" another DataFlow object. If it does, it can use a set of helper
-//       routines to track the state of its dependents. When its dependents are all ready(), it remembers their ids
-//       and can later test if they are stale.
+//       routines to track the state of its dependents. When its dependents are "stale" (have changed) the computation
+//       needs to be run.
 //
 //
 
 interface UseItem
 {
+  name?: string;
   df: DataFlow,
   id?: any,
+  wasstale?: boolean,
 }
 
 export class DataFlow
@@ -30,18 +29,26 @@ export class DataFlow
 
   // override in subclass
   id(): any { return null }
-  value(): any { return null }
 
-  uses(df: DataFlow): void
+  uses(df: DataFlow, name?: string): void
   {
-    this.usesList.push({ df: df });
+    this.usesList.push({ name: name, df: df });
   }
 
   usesStale(): boolean
   {
     let isstale = false;
-    this.usesList.forEach(ui => { if (ui.id !== ui.df.id()) isstale = true });
+    this.usesList.forEach(ui => {
+        ui.wasstale = ui.id !== ui.df.id();
+        if (ui.wasstale) isstale = true;
+      });
     return isstale;
+  }
+
+  wasStale(name: string): boolean
+  {
+    let ui: UseItem = this.usesList.find((ui: UseItem) => ui.name === name);
+    return ui != null && ui.wasstale;
   }
 
   usesRemember(): void
@@ -77,5 +84,4 @@ export class DataFlowCallback extends DataFlow
   }
 
   id(): any { if (!this._value) this._value = this._cb(); return this._value }
-  value(): any { return this.id() }
 }
