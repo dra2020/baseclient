@@ -150,7 +150,7 @@ class TwoOutputs extends DataFlow
   {
     super();
     this.basedata = basedata;
-    this.uses(basedat);
+    this.uses(basedata);
   }
 
   // Just pick one output that matchs DataFlow semantics, or create an explicit additional stamp
