@@ -56,7 +56,7 @@ For simplicity I just had it take an `IDataFlow`.)
 class MyComputation extends DataFlow
 {
   basedata: IDataFlow;
-  myresult: any;
+  _myresult: any;
 
   constructor(basedata: IDataFlow)
   {
@@ -65,28 +65,28 @@ class MyComputation extends DataFlow
     this.uses(basedata);
   }
 
-  dfid(): any { this.ifcompute(); return this.myresult }
+  dfid(): any { this.ifcompute(); return this._myresult }
 
-  result(): any { this.ifcompute(); return this.myresult }
+  myresult(): any { this.ifcompute(); return this._myresult }
 
   compute(): void
   {
-    // compute myresult from basedata
-    // maybe only change myresult conditionally - the change in basedata might have been irrelevant
+    // compute _myresult from basedata
+    // maybe only change _myresult conditionally - the change in basedata might have been irrelevant
   }
 }
 ```
 
-This class has a number of common characteristics you find in my `DataFlow` subclases:
+This class has a number of common characteristics you find in many `DataFlow` subclasses:
 
 - It extends from the `DataFlow` class to inherit the basic change tracking mechanism.
 
 - It defines its own dfid function so it can act as an internal node in a larger data flow computation.
 
 - It defines a `compute` function that does the actual work of computing the derived result. This function might
-examine the basedata object to determine if its value (`myresult`) actually does change. If it doesn't need to
-change, it would ensure that any downstream data flow nodes are not forced to recompute by leaving myresult
-unchanaged.
+examine the basedata object to determine if its value (`_myresult`) actually does change. If it doesn't need to
+change, it would ensure that any downstream data flow nodes are not forced to recompute by leaving `_myresult`
+unchanged.
 
 - It uses the helper member function `ifcompute` to determine whether it needs to recompute its result. This function is
 simply:
@@ -150,7 +150,7 @@ class TwoOutputs extends DataFlow
   {
     super();
     this.basedata = basedata;
-    this.uses(base);
+    this.uses(basedat);
   }
 
   // Just pick one output that matchs DataFlow semantics, or create an explicit additional stamp
@@ -161,7 +161,7 @@ class TwoOutputs extends DataFlow
 
   compute(): void
   {
-    // compute _myresult1 and _myresult2
+    // compute _myresult1 and _myresult2 from basedata
   }
 }
 ```
