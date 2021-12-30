@@ -2,7 +2,7 @@
 Library for managing the synchronous execution of a series of data flow computations
 that are recomputed only when inputs explicitly change (go "stale").
 
-# Overview
+## Overview
 
 A common design problem in interactive applications is that you have a set of base data
 objects that are changing over time and then a set of derived data objects that are computed by
@@ -41,7 +41,7 @@ The `dfid` function is the `stamp` and should match the data flow semantics: it 
 derived objects need to be recomputed and can be tested against a previous stamp using JavaScript 
 exact equivalence (===).
 
-# Example
+## Example
 
 A derived data object should extend off the `DataFlow` class.
 
@@ -106,7 +106,7 @@ The function `usesStale` simply tests whether any nodes this object `uses` have 
 they were remembered. If the inputs are stale, the function calls `usesRemember` to remember the stamps (dfid) of the
 inputs and calls the (typically overridden) `compute` function to perform the actual computation.
 
-# wasStale
+## wasStale
 
 The helper function `wasStale` can be used inside a `compute` implementation to test a specific input for staleness.
 That is, `compute` will be called when _any_ of its inputs are stale. In some cases, `compute` can be optimized if
@@ -116,7 +116,7 @@ for that input.
 If you are considering using `wasStale`, also consider whether you might instead define an additional node in the data flow
 tree that performs this pruning rather than embedding it inside your `compute` implementation.
 
-# Common Patterns
+## Common Patterns
 
 There are some common patterns that recur when using `DataFlow`.
 
