@@ -10,10 +10,15 @@
 //
 //
 
+export interface IDataFlow
+{
+  dfid: () => any;
+}
+
 interface UseItem
 {
   name?: string;
-  df: DataFlow,
+  df: IDataFlow,
   id?: any,
   wasstale?: boolean,
 }
@@ -28,9 +33,14 @@ export class DataFlow
   }
 
   // override in subclass
-  id(): any { return null }
+  dfid(): any { return null }
 
-  uses(df: DataFlow, name?: string): void
+  // override in subclass
+  compute(): void
+  {
+  }
+
+  uses(df: IDataFlow, name?: string): void
   {
     this.usesList.push({ name: name, df: df });
   }
@@ -39,7 +49,7 @@ export class DataFlow
   {
     let isstale = false;
     this.usesList.forEach(ui => {
-        ui.wasstale = ui.id !== ui.df.id();
+        ui.wasstale = ui.id !== ui.df.dfid();
         if (ui.wasstale) isstale = true;
       });
     return isstale;
@@ -53,7 +63,7 @@ export class DataFlow
 
   usesRemember(): void
   {
-    this.usesList.forEach(ui => { ui.id = ui.df.id() });
+    this.usesList.forEach(ui => { ui.id = ui.df.dfid() });
   }
 
   ifcompute(): void
@@ -63,10 +73,6 @@ export class DataFlow
       this.usesRemember();
       this.compute();
     }
-  }
-
-  compute(): void
-  {
   }
 }
 
@@ -83,5 +89,21 @@ export class DataFlowCallback extends DataFlow
     this._cb = cb;
   }
 
-  id(): any { if (!this._value) this._value = this._cb(); return this._value }
+  dfid(): any { if (!this._value) this._value = this._cb(); return this._value }
+}
+
+// Simple helper that maintains a simple monotonically increasing stamp
+export class DataFlowStamp extends DataFlow
+{
+  _stamp: number;
+
+  constructor()
+  {
+    super();
+    this._stamp = 0;
+  }
+
+  dfid(): any { return this._stamp }
+
+  stamp(): void { this._stamp++ }
 }
