@@ -20,7 +20,7 @@ interface UseItem
   name?: string;
   df: IDataFlow,
   id?: any,
-  wasstale?: boolean,
+  wasfresh?: boolean,
 }
 
 export class DataFlow
@@ -45,32 +45,32 @@ export class DataFlow
     this.usesList.push({ name: name, df: df });
   }
 
-  usesStale(): boolean
+  stale(): boolean
   {
     let isstale = false;
     this.usesList.forEach(ui => {
-        ui.wasstale = ui.id !== ui.df.dfid();
-        if (ui.wasstale) isstale = true;
+        ui.wasfresh = ui.id !== ui.df.dfid();
+        if (ui.wasfresh) isstale = true;
       });
     return isstale;
   }
 
-  wasStale(name: string): boolean
+  wasFresh(name: string): boolean
   {
     let ui: UseItem = this.usesList.find((ui: UseItem) => ui.name === name);
-    return ui != null && ui.wasstale;
+    return ui != null && ui.wasfresh;
   }
 
-  usesRemember(): void
+  remember(): void
   {
     this.usesList.forEach(ui => { ui.id = ui.df.dfid() });
   }
 
   ifcompute(): void
   {
-    if (this.usesStale())
+    if (this.stale())
     {
-      this.usesRemember();
+      this.remember();
       this.compute();
     }
   }

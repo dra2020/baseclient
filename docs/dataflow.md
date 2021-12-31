@@ -1,12 +1,12 @@
 # DataFlow
 Library for managing the synchronous execution of a series of data flow computations
-that are recomputed only when inputs explicitly change (go "stale").
+that are recomputed only when inputs explicitly change.
 
 ## Overview
 
 A common design problem in interactive applications is that you have a set of base data
-objects that are changing over time and then a set of derived data objects that are computed by
-some functions over those base data objects.
+objects that are changing over time and then a set of derived data objects that are recomputed by
+some functions over those base data objects when they change.
 
 In order to optimize interactive performance, you would like to minimize the amount of recomputation
 that needs to happen when base data objects change to only those set of derived objects that are
@@ -24,7 +24,7 @@ Often derived objects are computed off some combination of base objects and so a
 multiple stamps. A derived data object might also itself serve as the input to another derived computation.
 
 The result is that you have a tree of data flows and would like to prune the computation to only compute
-what is necessary based on the base changes that actually occurred.
+what is necessary based on the actual base data changes that actually occurred.
 
 The `DataFlow` class allows you to manage this set of computations in a structured way that makes the
 dependencies explicit and handles the basic bookkeeping around changing and tracking stamps.
@@ -94,26 +94,26 @@ simply:
 ```javascript
 ifcompute(): void
 {
-  if (this.usesStale())
+  if (this.stale())
   {
-    this.usesRemember();
+    this.remember();
     this.compute();
   }
 }
 ```
 
-The function `usesStale` simply tests whether any nodes this object `uses` have changed in value since the last time
-they were remembered. If the inputs are stale, the function calls `usesRemember` to remember the stamps (dfid) of the
+The function `stale` simply tests whether any nodes this object `uses` have changed in value since the last time
+they were remembered. If the inputs are _fresh_, the function calls `remember` to remember the stamps (dfid) of the
 inputs and calls the (typically overridden) `compute` function to perform the actual computation.
 
-## wasStale
+## wasFresh
 
-The helper function `wasStale` can be used inside a `compute` implementation to test a specific input for staleness.
-That is, `compute` will be called when _any_ of its inputs are stale. In some cases, `compute` can be optimized if
-it knows which specific inputs are stale. In order to use `wasStale`, provide an extra `name` argument to the `uses` call
+The helper function `wasFresh` can be used inside a `compute` implementation to test a specific input for freshness.
+That is, `compute` will be called when _any_ of its inputs are fresh. In some cases, `compute` can be optimized if
+it knows which specific inputs are fresh. In order to use `wasFresh`, provide an extra `name` argument to the `uses` call
 for that input.
 
-If you are considering using `wasStale`, also consider whether you might instead define an additional node in the data flow
+If you are considering using `wasFresh`, also consider whether you might instead define an additional node in the data flow
 tree that performs this pruning rather than embedding it inside your `compute` implementation.
 
 ## Common Patterns
