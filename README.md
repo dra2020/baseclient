@@ -19,6 +19,7 @@ These libraries are used across both client and server:
 - [Poly](./docs/poly.md): A set of functions for processing polygons, typically in GeoJSON format.
 - [Context](./docs/context.md): A set of functions for interrogating the context supplied to the application, either as
 - [FSM](./docs/fsm.md): A set of functions for managing asynchronous, chainable finite state machines.
+- [DataFlow](./docs/dataflow.md): A set of classes for managing synchronous, chainable dataflow.
 - [LogAbstract](./docs/logabstract.md): An abstract logging interface. Different implementations are used on client and server.
 - [LogClient](./docs/logclient.md): A client implementation of the logging abstract interface.
 - [OT](./docs/ot-js.md): An Operational Transformation implementation, used as the basis for all content editing.

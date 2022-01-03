@@ -25,3 +25,5 @@ import * as CSV from '../csv/all';
 export { CSV };
 import * as Colors from '../colors/colors';
 export { Colors };
+import * as DataFlow from '../dataflow/all';
+export { DataFlow }
