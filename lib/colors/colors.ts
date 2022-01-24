@@ -397,6 +397,7 @@ function getColorTable(palette: string): string[]
       ColorTable[palette].push(EthnicBackgroundColor[i]);
       return ColorTable[palette];
     }
+    return ColorTable[palette];
   }
 
   if (allPaletteNames.includes(palette))
