@@ -208,6 +208,9 @@ export function polyPack(coords: any, prepack?: PolyPack): PolyPack
   // Null feature?
   if (coords == null || (coords.length !== undefined && coords.length == 0)) return null;
 
+  // Null geometry?
+  if (coords && coords.type === 'Feature' && coords.geometry == null) return null;
+
   // Actually already a PolyPack?
   if (coords.offset !== undefined) return coords as PolyPack;
 
