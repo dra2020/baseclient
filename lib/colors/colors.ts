@@ -335,7 +335,10 @@ export function orderedColors(palette: string): string[]
     OrderedColorTable[palette] = [];
     for (let i: number = 0; i < MaxColors; i++)
     {
-      OrderedColorTable[palette].push(colors[DistrictsColorOrder[i] * 3]);
+      if (palette === 'jet_r' || palette === 'turbo_r')
+        OrderedColorTable[palette].push(colors[Math.floor(DistrictsColorOrder[i] * 2.5) + 12]);
+      else
+        OrderedColorTable[palette].push(colors[DistrictsColorOrder[i] * 3]);
     }
   }
   return OrderedColorTable[palette];
