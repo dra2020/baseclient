@@ -120,6 +120,7 @@ export interface SessionProps
   xprops?: { [prop: string]: string };
   groups: any;  // DT.GroupsMapIndex
   xid?: string; // external ID
+  colors?: string; // cached district colors (specific to OT redistricting)
 }
 
 // True to add, False to remove
