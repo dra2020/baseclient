@@ -1,11 +1,12 @@
 // Shared libraries
 import * as Util from '../util/all';
 
-// States
+// States (note these are no longer bit flags - most uses create custom values incrementally from CUSTOM1)
 export const FSM_STARTING: number = 0;
 export const FSM_PENDING: number  = 1<<0;
 export const FSM_DONE: number     = 1<<1;
 export const FSM_ERROR: number    = 1<<2;
+export const FSM_CANCEL: number   = 5;
 export const FSM_RELEASED: number = 1<<3;
 export const FSM_CUSTOM1: number  = 1<<4;
 export const FSM_CUSTOM2: number  = 1<<5;
@@ -22,7 +23,7 @@ let doLater: any = global && global.setImmediate ? setImmediate : (cb: any) => {
 
 function FsmDone(s: number): boolean
 {
-  return (s === FSM_DONE || s === FSM_ERROR || s === FSM_RELEASED);
+  return (s === FSM_DONE || s === FSM_ERROR || s === FSM_RELEASED || s === FSM_CANCEL);
 }
 
 function FsmStateToString(state: number): string
@@ -151,12 +152,18 @@ export class Fsm
 
   get iserror(): boolean
     {
-      return (this.state === FSM_ERROR);
+      return (this.state === FSM_ERROR || this.state === FSM_CANCEL);
     }
 
   get isDependentError(): boolean
     {
       return this.dependentError;
+    }
+
+  cancel(): void
+    {
+      // Override if you need to do more than marking complete
+      this.setState(FSM_CANCEL);
     }
 
   setDependentError(): void
