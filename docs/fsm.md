@@ -191,14 +191,18 @@ An `Fsm` can be reused and transition from `ready` to not `ready` or `done` to n
 
 ### Cancellation
 
-There is no explicit cancellation mechanism.
+The standard member function `cancel` will set the state to `FSM_CANCEL` which is considered a done state as
+well as an error state (and will set the dependentError flag on any waiting state machines).
 
-By convention, a sub-class should override the `end` member function to allow external cancellation or completion.
-By default this function sets the `Fsm` to `FSM_DONE` but can optionally take the `FSM_ERROR` state
-to indicate error.
+By convention, a sub-class should override the `cancel` member function to allow external cancellation
+if it needs to do more internal cleanup than set the state to `FSM_CANCEL`.
 
-Whether calling `end` or setting the state explicitly to `FSM_DONE` or `FSM_ERROR` from external to
-the state machine makes semantic sense depends on the specific properties and semantics of the computation.
+Additionally, it can use the `end` member function (by convention) to complete the state machine if that
+makes sense and does not wanted to be treated as an error.
+The class should override the `end` member function if it needs to do cleanup and finalization internally.
+
+If a class internally is implemented with callbacks or promises, by convention it should check `if this.done`
+when the callback or promise completes to check whether it may have been externally canceled while awaiting.
 
 ### FsmOnDone
 
