@@ -23,6 +23,56 @@ function isWhite(c: number): boolean
   return c === Space || c === Newline || c === Tab || c == CR;
 }
 
+// Keep calling next() to retrieve next parsed line. Returns false when done. Empty lines are ignored.
+
+export class ParseMany
+{
+  buf: Uint8Array;
+  n: number;
+  one: ParseOne;
+
+  constructor(coder: Util.Coder, buf: Uint8Array)
+  {
+    this.buf = buf;
+    this.n = 0;
+    this.one = new ParseOne(coder);
+  }
+
+  get length(): number { return this.one.length }
+  get fields(): string[] { return this.one.fields }
+
+  next(): boolean
+  {
+    // Move past any leading CRLF
+    while (this.n < this.buf.length)
+    {
+      let c = this.buf[this.n];
+      if (c == CR || c == Newline)
+        this.n++;
+      else
+        break;
+    }
+
+    let s = this.n;
+    while (this.n < this.buf.length)
+    {
+      let c = this.buf[this.n];
+      if (c == CR || c == Newline)
+        break;
+      else
+        this.n++;
+    }
+
+    if (s != this.n)
+    {
+      this.one.setBuf(this.buf.subarray(s, this.n));
+      return true;
+    }
+    else
+      return false;
+  }
+}
+
 export class ParseOne
 {
   coder: Util.Coder;
@@ -47,9 +97,15 @@ export class ParseOne
 
   set(line: string): void
   {
+    this.setBuf(Util.s2u8(this.coder, line));
+  }
+
+  setBuf(buf: Uint8Array): void
+  {
+    this.buf = buf;
     this.fields = [];
-    this.buf = Util.s2u8(this.coder, line);
-    this.tok = new Uint8Array(new ArrayBuffer(this.buf.length));
+    if (!this.tok || this.tok.length < this.buf.length)
+      this.tok = new Uint8Array(new ArrayBuffer(this.buf.length));
     this.n = 0;
     this.toklen = 0;
     this.infield = false;
