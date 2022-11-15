@@ -48,13 +48,19 @@ export class MultiBlockMapping
 
   map(blockid: string): string
   {
-    for (let i = 0; i < this.entries.length; i++)
+    // Walk backwards to pick up overrides first
+    for (let i = this.entries.length-1; i >= 0; i--)
     {
       let e = this.entries[i];
       if (e.bm[blockid])
         return e.bm[blockid];
     }
     return undefined;
+  }
+
+  mapmain(blockid: string): string
+  {
+    return this.entries.length ? this.entries[0].bm[blockid] : undefined;
   }
 
   rev(geoid: string): string[]
