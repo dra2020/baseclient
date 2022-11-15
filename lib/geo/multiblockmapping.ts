@@ -58,6 +58,12 @@ export class MultiBlockMapping
     return undefined;
   }
 
+  bmOf(tag: string): BlockMapping
+  {
+    let e = this.entries.find(e => e.tag === tag);
+    return e ? e.bm : null;
+  }
+
   mapmain(blockid: string): string
   {
     return this.entries.length ? this.entries[0].bm[blockid] : undefined;
@@ -74,5 +80,12 @@ export class MultiBlockMapping
         return e.rbm[geoid];
     }
     return undefined;
+  }
+
+  // Just walks first map
+  forEach(cb: (blockid: string) => void): void
+  {
+    if (this.entries.length)
+      Object.keys(this.entries[0].bm).forEach(blockid => cb(blockid));
   }
 }
