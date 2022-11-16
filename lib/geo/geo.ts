@@ -519,11 +519,8 @@ export class GeoMultiCollection
     return this.hidden[id] !== undefined;
   }
 
-  find(id: string): GeoFeature
+  findNoHide(id: string): GeoFeature
   {
-    if (this.hidden[id] !== undefined)
-      return undefined;
-
     let entries = Object.values(this.entries);
     for (let i = 0; i < entries.length; i++)
     {
@@ -531,8 +528,15 @@ export class GeoMultiCollection
       if (map[id])
         return map[id];
     }
-
     return undefined;
+  }
+
+  find(id: string): GeoFeature
+  {
+    if (this.hidden[id] !== undefined)
+      return undefined;
+
+    return this.findNoHide(id);
   }
 
   filter(test: (f: GeoFeature) => boolean): GeoMultiCollection
