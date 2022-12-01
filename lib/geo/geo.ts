@@ -8,6 +8,24 @@ export type GeoFeatureArray = GeoFeature[];
 export type GeoFeatureCollection = geojson.FeatureCollection;
 export type GeoCentroidMap = { [geoid: string]: { x: number, y: number } };
 
+// Tracing/debugging aid
+let metrics: { [action: string]: { count: number, total: number } } = {};
+
+function record(action: string, total: number): void
+{
+  if (metrics[action] === undefined)
+    metrics[action] = { count: 0, total: 0 };
+  metrics[action].count++;
+  metrics[action].total += total;
+}
+
+export function dumpMetrics(): void
+{
+  Object.keys(metrics).forEach(action => {
+      console.log(`G.${action}: count: ${metrics[action].count}, total: ${metrics[action].total}`);
+    });
+}
+
 export interface NormalizeOptions
 {
   joinPolygons?: boolean,
@@ -151,6 +169,8 @@ export function geoCollectionToTopo(col: GeoFeatureCollection): Poly.Topo
 {
   let topo = Poly.topoFromCollection(col);
   Poly.topoPack(topo);
+  record('coltotopo', col.features.length);
+  if ((col as any).datasets) (topo as any).datasets = (col as any).datasets;
   return topo;
 }
 
@@ -163,6 +183,8 @@ export function geoTopoToCollection(topo: Poly.Topo): GeoFeatureCollection
 {
   let col = Poly.topoToCollection(topo);
   Poly.featurePack(col);
+  record('topotocol', col.features.length);
+  if ((topo as any).datasets) (col as any).datasets = (topo as any).datasets;
   return col;
 }
 
@@ -354,8 +376,16 @@ export class GeoMultiCollection
       if (n == 1)
         this.all.col = this._col(this.nthEntry(0));
       else
+      {
         // Going from map to collection guarantees that any duplicates are removed
         this.all.col = geoMapToCollectionNonNull(this.allMap());
+        this.forEachEntry(e => {
+            if (e.col && (e.col as any).datasets)
+              (this.all.col as any).datasets = (e.col as any).datasets;
+            if (e.topo && (e.topo as any).datasets)
+              (this.all.col as any).datasets = (e.topo as any).datasets;
+          });
+      }
     }
     return this.all.col;
   }
