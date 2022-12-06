@@ -24,10 +24,12 @@ export function reverseBlockMapping(bm: BlockMapping): ReverseBlockMapping
 export class MultiBlockMapping
 {
   entries: Entry[];
+  stamp: number;
 
   constructor(tag?: string, bm?: BlockMapping)
   {
     this.entries = [];
+    this.stamp = Math.trunc(Math.random() * Number.MAX_SAFE_INTEGER / 2);
     if (tag && bm)
       this.entries.push({ tag, bm });
   }
@@ -37,13 +39,17 @@ export class MultiBlockMapping
     this.entries.forEach(e => { if (e.tag === tag) { e.bm = bm; delete e.rbm; bm = null } });
     if (bm)
       this.entries.push({ tag, bm });
+    this.stamp++;
   }
 
   remove(tag: string): void
   {
     for (let i = this.entries.length-1; i >= 0; i--)
       if (this.entries[i].tag === tag)
+      {
+        this.stamp++;
         this.entries.splice(i, 1);
+      }
   }
 
   map(blockid: string): string
@@ -56,6 +62,13 @@ export class MultiBlockMapping
         return e.bm[blockid];
     }
     return undefined;
+  }
+
+  multimap(blockid: string): string[]
+  {
+    let a: string[] = [];
+    this.entries.forEach(e => { if (e.bm[blockid]) a.push(e.bm[blockid]) });
+    return a;
   }
 
   bmOf(tag: string): BlockMapping
