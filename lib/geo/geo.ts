@@ -442,7 +442,10 @@ export class GeoMultiCollection
       {
         let map: GeoFeatureMap = {};
         this.all.map = map;
-        this.forEach(f => { map[String(f.properties.id)] = f });
+        this.forEachEntry(e => {
+            let col = this._col(e); // this ensures we convert feature geometry from topo to polygon
+            col.features.forEach(f => { map[String(f.properties.id)] = f });
+          });
       }
     }
     return this.all.map;
