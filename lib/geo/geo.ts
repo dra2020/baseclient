@@ -294,6 +294,35 @@ export class GeoMultiCollection
     }
   }
 
+  // Add the "all" collection from the passed in multi, but do not force compute of any things not computed yet.
+  addAll(tag: string, multi: GeoMultiCollection): void
+  {
+    if (multi == null || Util.isEmpty(multi.entries))
+      this.remove(tag);
+    else
+    {
+      let nEntries = Util.countKeys(multi.entries);
+      if (nEntries)
+      {
+        // Make sure all collection is created
+        if (!multi.all.topo && !multi.all.col && !multi.all.map)
+        {
+          // Create cheapest one (collection if I need to create, otherwise copy from single entry)
+          if (nEntries > 1)
+            multi.allCol();
+          else
+          {
+            let e = multi.nthEntry(0);
+            multi.all.topo = e.topo;
+            multi.all.col = e.col;
+            multi.all.map = e.map;
+          }
+        }
+        this.add(tag, multi.all.topo, multi.all.col, multi.all.map);
+      }
+    }
+  }
+
   remove(tag: string): void
   {
     let entry = this.entries[tag];
@@ -374,7 +403,12 @@ export class GeoMultiCollection
       // optimise case where one entry
       let n = this.nEntries;
       if (n == 1)
-        this.all.col = this._col(this.nthEntry(0));
+      {
+        let e = this.nthEntry(0);
+        this.all.col = this._col(e);
+        this.all.topo = this.all.topo || e.topo;
+        this.all.map = this.all.map || e.map;
+      }
       else
       {
         // Going from map to collection guarantees that any duplicates are removed
@@ -398,7 +432,12 @@ export class GeoMultiCollection
       // optimise case where one entry
       let n = this.nEntries;
       if (n == 1)
-        this.all.map = this._map(this.nthEntry(0));
+      {
+        let e = this.nthEntry(0);
+        this.all.map = this._map(e);
+        this.all.topo = this.all.topo || e.topo;
+        this.all.col = this.all.col || e.col;
+      }
       else
       {
         let map: GeoFeatureMap = {};
@@ -417,7 +456,12 @@ export class GeoMultiCollection
       // optimise case where one entry
       let n = this.nEntries;
       if (n == 1)
-        this.all.topo = this._topo(this.nthEntry(0));
+      {
+        let e = this.nthEntry(0);
+        this.all.topo = this._topo(e);
+        this.all.col = this.all.col || e.col;
+        this.all.map = this.all.map || e.map;
+      }
       else
         this.all.topo = geoCollectionToTopoNonNull(this.allCol());
     }
@@ -531,9 +575,12 @@ export class GeoMultiCollection
   forEach(cb: FeatureFunc): void
   {
     this.forEachEntry(e => {
-        let col = this._col(e);
         if (e.col)
-          e.col.features.forEach(f => { if (this.hidden[f.properties.id] === undefined) cb(f) })
+          e.col.features.forEach(f => { if (! this.hidden[f.properties.id]) cb(f) })
+        else if (e.topo)
+          Object.values(e.topo.objects).forEach((f: GeoFeature) => { if (! this.hidden[f.properties.id]) cb(f) });
+        else if (e.map)
+          Object.values(e.map).forEach(f => { if (! this.hidden[f.properties.id]) cb(f) });
       });
   }
 
