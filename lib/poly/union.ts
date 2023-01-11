@@ -59,6 +59,30 @@ export function polyIntersects(p1: any, p2: any): boolean
   return bIntersects;
 }
 
+export function polyIntersectArea(p1: any, p2: any): number
+{
+  let pp1 = Poly.polyNormalize(p1);
+  let pp2 = Poly.polyNormalize(p2);
+  let area: number = 0;
+
+  PP.polyPackEachRing(pp1, (buffer1: Float64Array, iPoly1: number, iRing1: number, iOffset1: number, nPoints1: number) => {
+      if (iRing1 == 0)
+      {
+        let c1 = unpackCoords(buffer1, iOffset1, nPoints1);
+        PP.polyPackEachRing(pp2, (buffer2: Float64Array, iPoly2: number, iRing2: number, iOffset2: number, nPoints2: number) => {
+            if (iRing2 == 0)
+            {
+              let c2 = unpackCoords(buffer2, iOffset2, nPoints2);
+              let result = _intersection(c1, c2);
+              if (result && result.length > 0)
+                area += Poly.polyArea(result);
+            }
+          });
+      }
+    });
+  return area;
+}
+
 export function polyDifference(main: any, parts: any[]): any
 {
   main = PP.polyUnpack(coords(main));
