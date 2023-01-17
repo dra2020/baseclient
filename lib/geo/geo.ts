@@ -7,6 +7,7 @@ export type GeoFeature = geojson.Feature;
 export type GeoFeatureArray = GeoFeature[];
 export type GeoFeatureCollection = geojson.FeatureCollection;
 export type GeoCentroidMap = { [geoid: string]: { x: number, y: number } };
+export type HideMap = { [id: string]: boolean };
 
 // Tracing/debugging aid
 let metrics: { [action: string]: { count: number, total: number } } = {};
@@ -24,6 +25,15 @@ export function dumpMetrics(): void
   Object.keys(metrics).forEach(action => {
       console.log(`G.${action}: count: ${metrics[action].count}, total: ${metrics[action].total}`);
     });
+}
+
+export function hidemapConcat(...args: HideMap[]): HideMap
+{
+  let hm: HideMap = {};
+
+  for (let i = 0; i < args.length; i++)
+    if (args[i]) Object.keys(args[i]).forEach(id => hm[id] = true);
+  return hm;
 }
 
 export interface NormalizeOptions
@@ -241,7 +251,7 @@ export class GeoMultiCollection
 {
   entries: GeoEntryMap;
   all: GeoEntry;
-  hidden: any;
+  hidden: HideMap;
   stamp: number;
 
   constructor(tag?: string, topo?: Poly.Topo, col?: GeoFeatureCollection, map?: GeoFeatureMap)
@@ -473,6 +483,16 @@ export class GeoMultiCollection
         this.all.topo = geoCollectionToTopoNonNull(this.allCol());
     }
     return this.all.topo;
+  }
+
+  hideSetAll(hm: HideMap): void
+  {
+    // Prevents onChange when resetting to same value
+    if (! Util.shallowEqual(this.hidden, hm))
+    {
+      this.showAll();
+      this.hide(hm);
+    }
   }
 
   hide(id: any): void
