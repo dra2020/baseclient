@@ -21,6 +21,7 @@ export function polyPackSize(coords: any): number
   // Null feature?
   if (coords == null || (coords.length !== undefined && coords.length == 0)) return 0;
 
+  if (! Array.isArray(coords)) return 0;
   let depth = Util.depthof(coords);
   if (depth == 3) coords = [[ coords ]];
   else if (depth == 4) coords = [ coords ]; // normalize to multipolygon
@@ -223,6 +224,8 @@ export function polyPack(coords: any, prepack?: PolyPack): PolyPack
     coords = coords.geometry.coordinates;
 
   // Transparently handle polygon or multi-polygon
+  if (! Array.isArray(coords)) return null;
+
   let depth = Util.depthof(coords);
   if (depth == 2) coords = [ [ [ coords ] ] ];
   else if (depth == 3) coords = [ [ coords ] ];
