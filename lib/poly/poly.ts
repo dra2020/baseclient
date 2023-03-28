@@ -2,6 +2,8 @@ import * as Util from '../util/all';
 
 import * as PP from './polypack';
 import { makeConvexHullGrahamScan } from './graham-scan';
+import { polyIntersects } from './union';
+import { featureCleanHoles } from './featurecleanholes';
 
 // For incremental poly interface
 export interface TickOptions
@@ -667,7 +669,7 @@ function closePoly(poly: any): any
   return poly;
 }
 
-function closeFeature(f: any): void
+function featureClose(f: any): void
 {
   let d = Util.depthof(f.geometry.coordinates);
   if (d === 4) closePoly(f.geometry.coordinates);
@@ -738,6 +740,16 @@ export function polyRingWindings(poly: any): Winding[]
   return windings;
 }
 
+function flattenMultiPoly(polys: any): any
+{
+  let c: any[] = [];
+  polys.forEach((poly: any) => {
+      poly.forEach((ring: any) => {
+          c.push([ring]);
+        });
+    });
+  return c;
+}
 
 // This mutates the passed in feature to ensure it is correctly wound
 // For convenience, passed back the value provided.
@@ -756,61 +768,18 @@ export function featureRewind(f: any, options?: RewindOptions): any
   if (f.geometry.type !== 'Polygon' && f.geometry.type !== 'MultiPolygon') return canonicalPoint(f, options);
 
   // Make sure polygon is closed (first === last)
-  if (options.validateClose) closeFeature(f);
+  if (options.validateClose)
+    featureClose(f);
 
   // Check if multi-polygon is really polygon with holes
-  // Only applies to multi-polygons with no holes
-  let d = Util.depthof(f.geometry.coordinates);
-  let windings = polyRingWindings(f);
-  if (options.validateHoles && d === 5 && windings.length > 1)
-  {
-    // First winding needs to be correct so we have a poly to add holes to
-    if (!misWound(windings[0]))
-    {
-      // Flatten everything out and then rebuild hole structure based on windings
-      let nHoles = 0; windings.forEach(w => { nHoles += w.iRing ? 1 : 0 });
-      if (nHoles)
-      {
-        let c: any[] = [];
-        f.geometry.coordinates.forEach((poly: any) => {
-            poly.forEach((ring: any) => {
-                c.push([ring]);
-              });
-          });
-        f.geometry.coordinates = c;
-        windings = polyRingWindings(f);
-      }
-
-      let polys = f.geometry.coordinates;
-      let iPoly = 0;
-      for (let iWinding = 0; iWinding < windings.length; iWinding++)
-      {
-        let good = !misWound(windings[iWinding]);
-        if (good)
-          iPoly = iWinding;
-        else
-        {
-          // If hole, add to previous poly
-          polys[iPoly].push(polys[iWinding][0]);
-          polys[iWinding] = null;
-        }
-      }
-      f.geometry.coordinates = polys.filter((p: any) => p != null);
-    }
-
-    // Degenerate multi-polygon
-    if (f.geometry.coordinates.length == 1)
-    {
-      f.geometry.type = 'Polygon';
-      f.geometry.coordinates = f.geometry.coordinates[0];
-      d = 4;
-    }
-  }
+  if (options.validateHoles)
+    featureCleanHoles(f);
 
   // OK, now go through each ring
   let polys = f.geometry.coordinates;
+  let d = Util.depthof(f.geometry.coordinates);
   if (d == 4) polys = [polys];
-  windings = polyRingWindings(f);
+  let windings = polyRingWindings(f);
   windings.forEach((w: Winding) => {
       let good = !misWound(w);
       if (!good)

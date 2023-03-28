@@ -15,3 +15,4 @@ export * from './selfintersect';
 export * from './shamos';
 export * from './pointinpoly';
 export * from './mapto';
+export * from './featurecleanholes';
