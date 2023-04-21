@@ -8,6 +8,7 @@ import * as TopoSimplify from '@dra2020/topojson-simplify';
 
 import * as Util from '../util/all';
 import * as FSM from '../fsm/all';
+import * as G from '../geo/all';
 
 import * as P from './poly';
 import * as Q from './quad';
@@ -362,24 +363,21 @@ let FSM_COMPUTING = UniqueState++;
 class FsmIncrementalUnion extends FSM.Fsm
 {
   options: P.TickOptions;
-  key: any;
+  key: number;
+  multi: G.GeoMultiCollection;
   map: any; // { [geoid: string]: Feature }
   result: any;
   work: Q.WorkDone;
 
-  constructor(env: FSM.FsmEnvironment, options: P.TickOptions, key: any, map?: any)
+  constructor(env: FSM.FsmEnvironment, options: P.TickOptions, multi: G.GeoMultiCollection, key: number, map?: any)
   {
     super(env);
     this.options = options;
+    this.multi = multi;
     this.key = key;
     this.result = null;
     this.map = null;
     if (map) this.recompute(map);
-  }
-
-  matches(key: any): boolean
-  {
-    return Util.shallowEqual(this.key, key);
   }
 
   recompute(map: any): void
@@ -399,7 +397,7 @@ class FsmIncrementalUnion extends FSM.Fsm
       let values = Object.values(map);
       this.work = { nUnion: values.length, nDifference: 0, ms: 0 };
       let elapsed = new Util.Elapsed();
-      this.result = topoMergeFeatures(this.key.multi.allTopo(), values);
+      this.result = topoMergeFeatures(this.multi.allTopo(), values);
       this.work.ms = elapsed.ms();
       this.map = map;
     }
@@ -430,7 +428,7 @@ class FsmIncrementalUnion extends FSM.Fsm
 
 export interface TopoUnionResult
 {
-  key: any;
+  key: number;
   poly: any;
   work: Q.WorkDone;
 }
@@ -438,59 +436,51 @@ export interface TopoUnionResult
 export class FsmTopoUnion extends FSM.Fsm
 {
   options: P.TickOptions;
-  unions: FsmIncrementalUnion[];
+  unions: { [index: number]: FsmIncrementalUnion };
   work: Q.WorkDone;
 
   constructor(env: FSM.FsmEnvironment, options?: P.TickOptions)
   {
     super(env);
     this.options = Util.shallowAssignImmutable(P.DefaultTickOptions, options);
-    this.unions = [];
+    this.unions = {};
     this.work = { nUnion: 0, nDifference: 0, ms: 0 };
   }
 
   get result(): TopoUnionResult[]
   {
-    if (this.unions.length > 0 && this.state === FSM.FSM_DONE)
-      return this.unions.map((i: FsmIncrementalUnion) => ({ key: i.key, poly: i.result, work: i.work }) );
+    if (Util.countKeys(this.unions) > 0 && this.state === FSM.FSM_DONE)
+      return Object.values(this.unions).map((i: FsmIncrementalUnion) => ({ key: i.key, poly: i.result, work: i.work }) );
     else
       return null;
   }
 
   cancel(): void
   {
-    this.unions.forEach((i: FsmIncrementalUnion) => {
+    Object.values(this.unions).forEach((i: FsmIncrementalUnion) => {
         i.cancel();
       });
-    this.unions = [];
+    this.unions = {};
     this.setState(FSM.FSM_DONE);
   }
 
-  cancelOne(key: any): void
+  cancelOne(key: number): void
   {
-    for (let i = 0; i < this.unions.length; i++)
-    {
-      let u = this.unions[i];
-      if (u.matches(key))
-      {
-        u.cancel();
-        return;
-      }
-    }
+    let u = this.unions[key];
+    if (u) u.cancel();
   }
 
-  recompute(key: any, map: any): void
+  recompute(multi: G.GeoMultiCollection, key: number, map: any): void
   {
-    let fsm: FsmIncrementalUnion = this.unions.find((i: FsmIncrementalUnion) => i.matches(key));
-    if (fsm == null)
+    let fsm = this.unions[key];
+    if (fsm == null || fsm.multi !== multi)
     {
-      fsm = new FsmIncrementalUnion(this.env, this.options, key, map);
-      this.unions.push(fsm);
+      fsm = new FsmIncrementalUnion(this.env, this.options, multi, key, map);
+      this.unions[key] = fsm;
     }
     else
       fsm.recompute(map);
     this.work = { nUnion: 0, nDifference: 0, ms: 0 };
-    this.unions.forEach((u) => { this.work.nUnion += u.work.nUnion; this.work.nDifference += u.work.nDifference });
     this.waitOn(fsm);
     this.setState(FSM_COMPUTING);
   }
@@ -503,7 +493,12 @@ export class FsmTopoUnion extends FSM.Fsm
       {
         case FSM.FSM_STARTING:
         case FSM_COMPUTING:
-          if (this.unions) this.unions.forEach((u) => { this.work.ms += u.work.ms });
+          this.work = { nUnion: 0, nDifference: 0, ms: 0 };
+          if (this.unions) Object.values(this.unions).forEach((i: FsmIncrementalUnion) => {
+              this.work.ms += i.work.ms;
+              this.work.nUnion += i.work.nUnion;
+              this.work.nDifference += i.work.nDifference;
+            });
           this.setState(FSM.FSM_DONE);
           break;
       }
