@@ -26,10 +26,12 @@ interface UseItem
 export class DataFlow
 {
   usesList: UseItem[];
+  inCompute: boolean;
 
   constructor()
   {
     this.usesList = [];
+    this.inCompute = false;
   }
 
   // override in subclass
@@ -70,8 +72,12 @@ export class DataFlow
   {
     if (this.stale())
     {
+      if (this.inCompute)
+        console.log(`DataFlow compute reentrancy: ${this.constructor?.name}`);
+      this.inCompute = true;
       this.remember();
       this.compute();
+      this.inCompute = false;
     }
   }
 }
