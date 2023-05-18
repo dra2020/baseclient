@@ -74,7 +74,7 @@ export function topoContiguity(topo: Topo): any
   let objects: any[] = Object.values(topo.objects);
   let geoid = getGEOID(objects);
   objects.forEach((o: any) => { o.properties.id = o.properties[geoid] });
-  let neighbors = TopoClient.neighbors(objects, true);
+  let neighbors = TopoClient.neighbors(topo, objects, true);
   let result: any = {};
   result['OUT_OF_STATE'] = [];
   objects.forEach((o: any, i: number) => {
