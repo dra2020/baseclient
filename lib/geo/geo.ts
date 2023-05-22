@@ -480,7 +480,14 @@ export class GeoMultiCollection
         this.all.map = this.all.map || e.map;
       }
       else
-        this.all.topo = geoCollectionToTopoNonNull(this.allCol());
+      {
+        // Old-style, goes through map (to filter hidden) and then collection
+        // this.all.topo = geoCollectionToTopoNonNull(this.allCol());
+        // New style, use splice on packed topologies
+        let topoarray = Object.values(this.entries).map((e: GeoEntry) =>
+          { return { topology: this._topo(e), filterout: this.hidden } });
+        this.all.topo = Poly.topoSplice(topoarray);
+      }
     }
     return this.all.topo;
   }

@@ -96,6 +96,14 @@ export function topoToFeature(topo: Topo, geoid: string): any
   return correctGeometry(TopoClient.feature(topo, topo.objects[geoid]));
 }
 
+export type TopoSpliceEntry = { topology: Topo, filterout?: any };
+
+export function topoSplice(topoarray: TopoSpliceEntry[]): Topo
+{
+  if (topoarray) topoarray.forEach(e => topoPack(e.topology));
+  return TopoClient.splice(topoarray);
+}
+
 export function topoToCollection(topo: Topo): any
 {
   let col: any = { type: 'FeatureCollection', features: [] };
