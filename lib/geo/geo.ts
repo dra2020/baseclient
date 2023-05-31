@@ -396,6 +396,15 @@ export class GeoMultiCollection
     return e.topo;
   }
 
+  _length(e: GeoEntry): number
+  {
+    if (e == null) return 0;
+    return  e.col ? e.col.features.length
+          : e.map ? Util.countKeys(e.map)
+          : e.topo ? Util.countKeys(e.topo.objects)
+          : 0;
+  }
+
   colOf(tag: string): GeoFeatureCollection { return this._col(this.entries[tag]); }
   mapOf(tag: string): GeoFeatureMap { return this._map(this.entries[tag]); }
   topoOf(tag: string): Poly.Topo { return this._topo(this.entries[tag]); }
@@ -484,9 +493,9 @@ export class GeoMultiCollection
         // Old-style, goes through map (to filter hidden) and then collection
         // this.all.topo = geoCollectionToTopoNonNull(this.allCol());
         // New style, use splice on packed topologies
-        let topoarray = Object.values(this.entries).map((e: GeoEntry) =>
-          { return { topology: this._topo(e), filterout: this.hidden } });
-        this.all.topo = Poly.topoSplice(topoarray);
+        let topoarray = Object.values(this.entries).filter((e: GeoEntry) => this._length(e) > 0)
+          .map((e: GeoEntry) => { return { topology: this._topo(e), filterout: this.hidden } });
+        this.all.topo = topoarray.length == 0 ? null : topoarray.length == 1 ? topoarray[0].topology : Poly.topoSplice(topoarray);
       }
     }
     return this.all.topo;
@@ -552,14 +561,7 @@ export class GeoMultiCollection
   get length(): number
   {
     let n = 0;
-    this.forEachEntry(e => {
-        if (e.col)
-          n += e.col.features.length;
-        else if (e.map)
-          n += Util.countKeys(e.map);
-        else if (e.topo)
-          n += Util.countKeys(e.topo.objects);
-      });
+    this.forEachEntry(e => n += this._length(e));
     return n;
   }
 
