@@ -491,6 +491,29 @@ export class GeoMultiCollection
       else
       {
         // Old-style, goes through map (to filter hidden) and then collection
+        this.all.topo = geoCollectionToTopoNonNull(this.allCol());
+      }
+    }
+    return this.all.topo;
+  }
+
+  allNewTopo(): Poly.Topo
+  {
+    if (this.nEntries == 0) return null;
+    if (! this.all.topo)
+    {
+      // optimise case where one entry
+      let n = this.nEntries;
+      if (n == 1)
+      {
+        let e = this.nthEntry(0);
+        this.all.topo = this._topo(e);
+        this.all.col = this.all.col || e.col;
+        this.all.map = this.all.map || e.map;
+      }
+      else
+      {
+        // Old-style, goes through map (to filter hidden) and then collection
         // this.all.topo = geoCollectionToTopoNonNull(this.allCol());
         // New style, use splice on packed topologies
         let topoarray = Object.values(this.entries).filter((e: GeoEntry) => this._length(e) > 0)
