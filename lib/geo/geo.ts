@@ -476,6 +476,13 @@ export class GeoMultiCollection
 
   allTopo(): Poly.Topo
   {
+    // Note that you can't actually switch between allNewTopo and allOldTopo
+    // without calling _onChange between the calls to reset the 'all' tag.
+    return this.allNewTopo();
+  }
+
+  allOldTopo(): Poly.Topo
+  {
     if (this.nEntries == 0) return null;
     if (! this.all.topo)
     {
