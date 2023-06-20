@@ -511,22 +511,26 @@ export class GeoMultiCollection
     {
       // optimise case where one entry
       let n = this.nEntries;
+      let e = this.nthEntry(0);
       if (n == 1)
       {
-        let e = this.nthEntry(0);
         this.all.topo = this._topo(e);
         this.all.col = this.all.col || e.col;
         this.all.map = this.all.map || e.map;
       }
-      else
+      else if (e.topo)
       {
         // Old-style, goes through map (to filter hidden) and then collection
         // this.all.topo = geoCollectionToTopoNonNull(this.allCol());
         // New style, use splice on packed topologies
+        let filterout = Util.isEmpty(this.hidden) ? null : this.hidden; // splice function requires NULL for empty
         let topoarray = Object.values(this.entries).filter((e: GeoEntry) => this._length(e) > 0)
-          .map((e: GeoEntry) => { return { topology: this._topo(e), filterout: this.hidden } });
+          .map((e: GeoEntry) => { return { topology: this._topo(e), filterout } });
         this.all.topo = topoarray.length == 0 ? null : topoarray.length == 1 ? topoarray[0].topology : Poly.topoSplice(topoarray);
       }
+      else
+        // Old-style, goes through map (to filter hidden) and then collection
+        this.all.topo = geoCollectionToTopoNonNull(this.allCol());
     }
     return this.all.topo;
   }
