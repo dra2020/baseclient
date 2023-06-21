@@ -94,8 +94,9 @@ export class OTClientEngine extends OTE.OTEngine
       if (b != this.bReadOnly)
       {
         this.bReadOnly = b;
-        if (this.bReadOnly)
-          this.failbackToServerState();
+        //No longer necessary - especially since we want to allow local edits to be applied for temporary work.
+        //if (this.bReadOnly)
+         // this.failbackToServerState();
       }
     }
 
@@ -307,7 +308,10 @@ export class OTClientEngine extends OTE.OTEngine
 	//
 	addLocalEdit(orig: OTC.OTCompositeResource): void
 		{
-      if (! this.bReadOnly)
+      //Comment out bReadOnly test to now allow changes to be locally applied for readonly sessions, for playing around.
+      //Server still prevents any edits from actually being applied. And clientsession changes
+      //Don't actually send edits as well.
+      //if (! this.bReadOnly)
       {
         try
         {
