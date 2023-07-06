@@ -357,6 +357,24 @@ export function featurePack(f: any, prepack?: PolyPack): any
   }
   else if (f && f.type === 'FeatureCollection' && f.features)
   {
+    // Empty?
+    if (f.features.length == 0) return f;
+
+    // Already packed or packed incorrectly?
+    let ff: any = f.features[0];
+    if (ff && ff.geometry && ff.geometry.packed)
+    {
+      // Already packed
+      if (ArrayBuffer.isView(ff.geometry.packed.buffer))
+        return f;
+      // Improperly packed (buffer converted to object - convert back to buffer
+      let o: any = ff.geometry.packed.buffer;
+      let b = new Float64Array(Util.countKeys(o));
+      for (const i in o) b[Number(i)] = o[i];
+      f.features.forEach((ff: any) => ff.geometry.packed.buffer = b);
+      return f;
+    }
+
     // Allocate one large buffer
     let nFloats: number = 0;
     let i: number;
