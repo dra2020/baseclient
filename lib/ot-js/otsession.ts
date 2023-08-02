@@ -34,6 +34,7 @@ export const PermRead: number = 1;      // Can view
 export const PermWrite: number = 2;     // Can modify
 export const PermOwner: number = 4;     // Can change deleted, published, access permissions
 export const PermAdmin: number = 8;     // Can administer site
+export const PermVersion: number = 16;  // Can view a specific version
 export const PermEdit: number = (PermWrite|PermOwner);
 export const PermAll: number = (PermRead|PermWrite|PermOwner|PermAdmin);
 export type Permission = number;
@@ -64,8 +65,9 @@ export interface Access
 export interface Revision
 {
   id: string;
-  modifyTime: any;  // JSON date
-  label?: string;   // optional label
+  modifyTime: any;    // JSON date
+  label?: string;     // optional label
+  editcache?: string; // optional editcache key
 }
 
 export type RevisionList = Revision[];

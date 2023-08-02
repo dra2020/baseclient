@@ -4,20 +4,15 @@ export function polyContainsPoint(poly: any, x: number, y: number): boolean
 {
   let pp = PP.polyPack(poly);
   if (pp == null) return false;
-  let bFound = false;
   let bInside = false;
   let iCurPoly = -1;
   let bCurInside = false;
 
   PP.polyPackEachRing(pp, (b: Float64Array, iPoly: number, iRing: number, iOffset: number, nPoints: number) => {
-      if (bFound) return;
       if (iRing == 0)
       {
         if (iCurPoly >= 0 && bCurInside)
-        {
           bInside = true;
-          bFound = true;
-        }
         iCurPoly = iPoly;
         bCurInside = false;
       }
