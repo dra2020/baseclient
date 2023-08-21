@@ -100,6 +100,7 @@ export interface SessionUserList
 export interface SessionProps
 {
   id: string;
+  baseid?: string;
   name: string;
   type: string;
   description: string;
