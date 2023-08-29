@@ -100,7 +100,8 @@ export interface SessionUserList
 export interface SessionProps
 {
   id: string;
-  baseid?: string;
+  baseid?: string;  // For owner, actual sid if id is frozen version
+  rid?: string;     // Revision ID for frozen version
   name: string;
   type: string;
   description: string;

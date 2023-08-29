@@ -1,6 +1,6 @@
 {
   "name": "@dra2020/baseclient",
-  "version": "1.0.120",
+  "version": "1.0.121",
   "description": "Utility functions for Javascript projects.",
   "main": "dist/baseclient.js",
   "types": "./dist/all/all.d.ts",
