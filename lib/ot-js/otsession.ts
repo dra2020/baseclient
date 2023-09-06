@@ -115,6 +115,7 @@ export interface SessionProps
   requestCount: number;
   deleted: boolean;
   published?: string;
+  locked?: boolean;
   official: boolean;
 	loadFailed: boolean;
   accessMap: AccessMap;
@@ -138,6 +139,7 @@ export interface SessionUpdateProps
 	deleted?: boolean;
 	published?: boolean;
 	official?: boolean;
+  locked?: boolean;
   name?: string;
   description?: string;
   labelupdate?: LabelUpdate;
