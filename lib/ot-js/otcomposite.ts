@@ -133,6 +133,21 @@ export class OTCompositeResource extends OT.OTResourceBase
 			}
 		}
 
+	tryTransform(rhs: OTCompositeResource, bPriorIsService: boolean): boolean
+		{
+      let bSucceed = true;
+
+			for (let i: number = 0; bSucceed && i < rhs.length; i++)
+			{
+				let rhsEdit: OT.IOTResource = rhs.edits[i];
+				let lhsEdit: OT.IOTResource = this.findResource(rhsEdit.resourceName, rhsEdit.underlyingType, false);
+				if (lhsEdit)
+					bSucceed = lhsEdit.tryTransform(rhsEdit, bPriorIsService);
+			}
+
+      return bSucceed;
+		}
+
 	// compose two edit actions
 	compose(rhs: OTCompositeResource): void 			// throws on error
 		{
@@ -147,6 +162,21 @@ export class OTCompositeResource extends OT.OTResourceBase
 
 			this.clock = rhs.clock;
 			this.clientSequenceNo = rhs.clientSequenceNo;
+		}
+
+	tryCompose(rhs: OTCompositeResource): boolean
+		{
+      let bSucceed = true;
+			for (let i: number = 0; bSucceed && i < rhs.length; i++)
+			{
+				let rhsEdit: OT.IOTResource = rhs.edits[i];
+
+				let lhsEdit: OT.IOTResource = this.findResource(rhsEdit.resourceName, rhsEdit.underlyingType, !rhsEdit.isEmpty());
+				if (lhsEdit)
+					bSucceed = lhsEdit.tryCompose(rhsEdit);
+			}
+
+      return bSucceed;
 		}
 
 	// apply this edit to an existing value, returning new value (if underlying type is mutable, may modify input)

@@ -245,11 +245,47 @@ export class OTServerEngine extends OTE.OTEngine
           for (i++; i < this.logServer.length; i++)
             aPrior.compose(this.logServer[i]);
 
+          if (! a.tryTransform(aPrior, true))
+          {
+            console.log('otserverengine: rejecting event on transform failure');
+            this.forgetEvents(orig);
+            return OTS.EClockReset;
+          }
+
           a.transform(aPrior, true);
+        }
+
+        let bFail = ! this.stateServer.tryCompose(a);
+        if (bFail)
+        {
+          console.log('otserverengine: rejecting event on compose failure');
+          if (this.logServer.length)
+          {
+            let newState = this.logServer[0].copy();
+            for (let i = 1; i < this.logServer.length; i++)
+              newState.compose(this.logServer[i]);
+            if (newState.tryCompose(a))
+            {
+              console.log('otserverengine: actually... rejected event would succeed on composed log, so patching');
+              this.stateServer = newState;
+              bFail = false;
+            }
+            else
+              console.log('otserverengine: and... rejected event also fails on composed log');
+          }
+          else
+            console.log('otserverengine: and... no log to try to patch state with');
+
+          if (bFail)
+          {
+            this.forgetEvents(orig);
+            return OTS.EClockReset;
+          }
         }
 
         a.clock = this.stateServer.clock + 1;
         this.stateServer.compose(a);
+
         this.resetCaches();
         this.emit('state');
         this.logServer.push(a.copy());

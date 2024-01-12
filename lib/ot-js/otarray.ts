@@ -770,6 +770,16 @@ export class OTArrayLikeResource extends OT.OTResourceBase
 			this.coalesce();
 		}
 
+	tryCompose(rhs: OTArrayLikeResource): boolean
+		{
+			if (this.length == 0)
+        return true;
+			else if (rhs.edits.length == 0)
+				return true;
+
+			return this.finalLength() == rhs.originalLength();
+    }
+
 	performTransformReorder(bForceRetainBeforeInsert: boolean, newA: OTEdits, iBegin: number, iEnd: number): void
 		{
 			if (iBegin < 0 || iBegin > iEnd) return;
@@ -834,6 +844,14 @@ export class OTArrayLikeResource extends OT.OTResourceBase
 					(newA[i])[0] = OpRetain;
 			this.edits = newA;
 		}
+
+  tryTransform(prior: OTArrayLikeResource, bPriorIsService: boolean): boolean
+    {
+			if (this.length == 0 || prior.length == 0)
+				return true;
+
+			return this.originalLength() == prior.originalLength();
+    }
 
 	transform(prior: OTArrayLikeResource, bPriorIsService: boolean): void
 		{
