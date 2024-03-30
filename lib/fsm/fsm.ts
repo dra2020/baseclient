@@ -51,7 +51,7 @@ function FsmStateToString(state: number): string
   }
 }
 
-export type FsmIndex = { [key: number]: Fsm };
+export type FsmIndex = Set<Fsm>;
 
 export class FsmManager
 {
@@ -66,14 +66,14 @@ export class FsmManager
     this.theId = 0;
     this.theEpoch = 0;
     this.bTickSet = false;
-    this.theTickList = {};
+    this.theTickList = new Set<Fsm>();
     this.theBusyLoopCount = 0;
     this.doTick = this.doTick.bind(this);
   }
 
   forceTick(fsm: Fsm): void
   {
-    this.theTickList[fsm.id] = fsm;
+    this.theTickList.add(fsm);
     if (! this.bTickSet)
     {
       this.bTickSet = true;
@@ -82,32 +82,26 @@ export class FsmManager
   }
 
   doTick(): void
+  {
+    this.bTickSet = false;
+    let nLoops = 0;
+
+    while (nLoops < 1 && this.theTickList.size > 0)
     {
-      this.bTickSet = false;
-      let nLoops: number = 0;
+      nLoops++;
+      let thisTickList = this.theTickList;
+      this.theTickList = new Set<Fsm>();
 
-      while (nLoops < 1 && !Util.isEmpty(this.theTickList))
-      {
-        nLoops++;
-        let thisTickList = this.theTickList;
-        this.theTickList = {};
-
-        for (let id in thisTickList) if (thisTickList.hasOwnProperty(id))
-        {
-          let f = thisTickList[id];
-          f.preTick();
-          f.tick();
-        }
-      }
-
-      if (Util.isEmpty(this.theTickList))
-        this.theBusyLoopCount = 0;
-      else
-        this.theBusyLoopCount++;
-
-      this.theEpoch++;
+      thisTickList.forEach((f: Fsm) => f.tick());
     }
 
+    if (this.theTickList.size == 0)
+      this.theBusyLoopCount = 0;
+    else
+      this.theBusyLoopCount++;
+
+    this.theEpoch++;
+  }
 }
 
 export interface FsmEnvironment
@@ -132,143 +126,105 @@ export class Fsm
       this.state = FSM_STARTING;
       this.dependentError = false;
       this.epochDone = -1;
-      this._waitOn = null;
-      this._waitedOn = null;
+      this._waitOn = new Set<Fsm>();
+      this._waitedOn = new Set<Fsm>();
       this.manager.forceTick(this);
     }
 
   get env(): FsmEnvironment { return this._env; }
   get manager(): FsmManager { return this.env.fsmManager; }
 
-  get done(): boolean
-    {
-      return FsmDone(this.state);
-    }
+  get done(): boolean { return FsmDone(this.state) }
 
-  get ready(): boolean
-    {
-      return !this.done && this._waitOn == null;
-    }
+  get ready(): boolean { return !this.done && this.nWaitOn == 0 }
 
-  get iserror(): boolean
-    {
-      return (this.state === FSM_ERROR || this.state === FSM_CANCEL);
-    }
+  get iserror(): boolean { return this.state === FSM_ERROR || this.state === FSM_CANCEL }
 
-  get isDependentError(): boolean
-    {
-      return this.dependentError;
-    }
+  get isDependentError(): boolean { return this.dependentError }
 
-  cancel(): void
-    {
-      // Override if you need to do more than marking complete
-      this.setState(FSM_CANCEL);
-    }
+  // Override if you need to do more than marking complete
+  cancel(): void { this.setState(FSM_CANCEL) }
 
-  setDependentError(): void
-    {
-      this.dependentError = true;
-    }
+  setDependentError(): void { this.dependentError = true }
 
-  clearDependentError(): void
-    {
-      this.dependentError = false;
-    }
+  clearDependentError(): void { this.dependentError = false }
 
-  get ticked(): boolean
-    {
-      return this.done && this.manager.theEpoch > this.epochDone;
-    }
+  get ticked(): boolean { return this.done && this.manager.theEpoch > this.epochDone }
 
-  get nWaitOn(): number
-    {
-      return Util.countKeys(this._waitOn);
-    }
+  get nWaitOn(): number { return this._waitOn.size }
 
-  get nWaitedOn(): number
-    {
-      return Util.countKeys(this._waitedOn);
-    }
+  get nWaitedOn(): number { return this._waitedOn.size }
 
   waitOn(fsm: Fsm | Fsm[]): Fsm
+  {
+    if (fsm == null)
+      return this;
+    else if (Array.isArray(fsm))
     {
-      if (fsm == null)
-        return this;
-      else if (Array.isArray(fsm))
+      fsm.forEach((f: Fsm) => this.waitOn(f));
+    }
+    else
+    {
+      if (fsm.done)
       {
-        for (let i: number = 0; i < fsm.length; i++)
-          this.waitOn(fsm[i]);
+        // If dependency is already done, don't add to waitOn list but ensure that
+        // this Fsm gets ticked during next epoch. This is because the dependent tick
+        // only happens when the dependency state is changed.
+        this.manager.forceTick(this);
+        if (fsm.iserror)
+          this.setDependentError();
       }
       else
       {
-        if (fsm.done)
-        {
-          // If dependency is already done, don't add to waitOn list but ensure that
-          // this Fsm gets ticked during next epoch. This is because the dependent tick
-          // only happens when the dependency state is changed.
-          this.manager.forceTick(this);
-          if (fsm.iserror)
-            this.setDependentError();
-        }
-        else
-        {
-          if (this._waitOn == null) this._waitOn = {};
-          this._waitOn[fsm.id] = fsm;
-          if (fsm._waitedOn == null) fsm._waitedOn = {};
-          fsm._waitedOn[this.id] = this;
-        }
+        this._waitOn.add(fsm);
+        fsm._waitedOn.add(this);
       }
-      return this;
     }
+    return this;
+  }
 
   setState(state: number): void
+  {
+    this.state = state;
+    if (this.done)
     {
-      this.state = state;
-      if (this.done)
+      // Loop because completion might add more to wait list
+      while (this.nWaitedOn)
       {
-        while (this._waitedOn)
-        {
-          let on = this._waitedOn;
-          this._waitedOn = null;
-          for (let id in on) if (on.hasOwnProperty(id))
-          {
-            let f = on[id];
-            if (this.iserror) f.setDependentError();
-            this.manager.forceTick(f);
-          }
-        }
-
-        this.epochDone = this.manager.theEpoch;
+        let waitedOn = this._waitedOn;
+        this._waitedOn = new Set<Fsm>();
+        waitedOn.forEach((f: Fsm) => { f._completed(this); this.manager.forceTick(f) });
       }
-      this.manager.forceTick(this);
+
+      this.epochDone = this.manager.theEpoch;
     }
+    this.manager.forceTick(this);
+  }
 
   // Can override if need to do more here
   end(state: number = FSM_DONE): void
-    {
-      this.setState(state);
-    }
+  {
+    this.setState(state);
+  }
 
-  // Cleans up _waitOn
-  preTick(): void
+  // Override if subclass needs to respond to individual items completing rather than waiting
+  // in tick. Useful to avoid O(n^2) if waiting on lots of items and not wanting to do a linear
+  // scan for completed FSMs. Or to not require separate bookkeeping for list of dependents.
+  waitOnCompleted(f: Fsm): void { }
+
+  _completed(f: Fsm): void
+  {
+    if (f.iserror) this.setDependentError();
+    if (f.done && this._waitOn.has(f))
     {
-      if (this._waitOn == null) return;
-      let bMore: boolean = false;
-      for (let id in this._waitOn) if (this._waitOn.hasOwnProperty(id))
-      {
-        let fsm = this._waitOn[id];
-        if (fsm.done)
-          delete this._waitOn[id];
-        else
-          bMore = true;
-      }
-      if (!bMore) this._waitOn = null;
+      this._waitOn.delete(f);
+      this.waitOnCompleted(f);
     }
+  }
 
   tick(): void
-    {
-    }
+  {
+  }
 }
 
 // Launches callback provided when the associated Fsm (or Fsm array) completes.
