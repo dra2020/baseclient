@@ -204,6 +204,28 @@ The class should override the `end` member function if it needs to do cleanup an
 If a class internally is implemented with callbacks or promises, by convention it should check `if this.done`
 when the callback or promise completes to check whether it may have been externally canceled while awaiting.
 
+### waitOnCompletion
+
+In some cases, a waiting `Fsm` wants to know immediately whether a dependent `Fsm` has completed.
+For example, it might want to keep a queue filled rather than wait until all dependent state machines
+have completed and it has transitioned to a ready state.
+
+Additionally, entering the `tick()` function simply indicates _any_ `Fsm` may have completed and determining which
+is `done` would normally require a linear walk through all dependents. This linear walk can risk introducing
+O(N^2) behavior.
+
+In these cases, an `Fsm` subclass may override the `waitOnCompletion` member function to get notified of
+a completion. This gets called when any dependent machine completes with success or failure.
+For example:
+
+```javascript
+waitOnCompletion(fsm: Fsm): void
+{
+  // Some processing on child completion, e.g.
+  this.nFailures += fsm.iserror ? 1 : 0;
+}
+```
+
 ### FsmOnDone
 
 A simple utility class `FsmOnDone` provides a way of integrating a callback with an Fsm-based infrastructor.
