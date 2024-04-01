@@ -1,5 +1,5 @@
 import { polyIntersects } from './union';
-import { polyArea } from './poly';
+import { polyArea, polyDescribe } from './poly';
 
 function flattenMultiPoly(polys: any): any
 {
@@ -23,6 +23,14 @@ export function featureCleanHoles(f: any): any
       || f.geometry.type !== 'MultiPolygon'
       || !Array.isArray(f.geometry.coordinates))
     return f;
+
+  // Bail out if excessive computation cost (and complex poly likely already correct, heuristically)
+  let d = polyDescribe(f);
+  if (d.npoly + d.nhole > 10)
+  {
+    //console.log(`featureCleanHoles: bailing out on polygon with ${d.npoly} polygons and ${d.nhole} holes`);
+    return f;
+  }
 
   // Normalize to flattened polygon
   f.geometry.coordinates = flattenMultiPoly(f.geometry.coordinates);
