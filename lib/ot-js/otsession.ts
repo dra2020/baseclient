@@ -24,8 +24,10 @@ export const FilterTrash: number = 4;
 export const FilterPublic: number = 5;
 export const FilterOfficial: number = 6;
 export const FilterCOI: number = 7;
-export const FilterMyGroups: number = 8;
-export const FilterCount: number = 9;
+export const FilterMyGroupMaps: number = 8;
+export const FilterMyGroups: number = 9;
+export const FilterMyDatasets: number = 10;
+export const FilterCount: number = 11;
 export type Filter = number;
 
 // Permissions
