@@ -27,7 +27,9 @@ export const FilterCOI: number = 7;
 export const FilterMyGroupMaps: number = 8;
 export const FilterMyGroups: number = 9;
 export const FilterMyDatasets: number = 10;
-export const FilterCount: number = 11;
+export const FilterPublicDatasets: number = 11;
+export const FilterMyGroupDatasets: number = 12;
+export const FilterCount: number = 13;
 export type Filter = number;
 
 // Permissions
