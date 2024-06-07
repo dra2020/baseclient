@@ -27,3 +27,5 @@ import * as Colors from '../colors/colors';
 export { Colors };
 import * as DataFlow from '../dataflow/all';
 export { DataFlow }
+import * as Detail from '../detail/all';
+export { Detail }
