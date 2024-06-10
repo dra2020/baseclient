@@ -126,7 +126,7 @@ export class FormatDetail
     }
   }
 
-  prepare(o: any): any
+  static prepare(o: any): any
   {
     if (o)
     {
