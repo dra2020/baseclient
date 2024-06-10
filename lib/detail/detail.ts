@@ -1,12 +1,11 @@
 //
-// FormatDetail will take a pattern that specifies a set of formatted detail lines.
-// Given an object with a set of integer properties, it will evaluate the pattern and produce
-// an array of { k: string, n: number, v: string } results for displaying the contents of the object.
+// FormatDetail will take an expression that specifies a format detail lines.
+// Given an object with a set of integer properties, it will evaluate the expression and produce
+// a result { k: string, n: number, v: string } results for displaying the contents of the object.
 //
-// The formatting string contains a series of statements, separated by newline or semicolon.
-// A single statement is of the form:
-//    label=expr
-// Expr can be an arithmetic expression using +-/*() as operators and variables are the field
+// The formatting string is a statement of the form:
+//    =expr
+// Expr can be an arithmetic expression using +-/*()?: as operators and variables are the field
 // names of properties on the object passed in. The special field name _tot represents the
 // total of all properties. The expression may also include double-quoted strings that are
 // passed through (e.g. for use as labels = area" sqm")
@@ -73,101 +72,95 @@ interface DetailItem
   text?: string,
 }
 
-interface DetailLine
-{
-  label: string,
-  items: DetailItem[],
-}
-
 export interface DetailResult
 {
-  k: string,  // label
   n: number,  // value before formatting
   v: string,  // value
-  t?: string, // tooltip
 }
 
 const reInvalidChars = /[\.\[\]\\]/;
+const reExpr = /^=(.*)$/
 
 export class FormatDetail
 {
   valid: boolean;
   pattern: string;
-  lines: DetailLine[];
+  items: DetailItem[];
 
   constructor(pattern: string)
   {
     this.valid = true;
-    this.pattern = pattern;
-    this.lines = [];
-    let lines = this.pattern.split(/[;\n]/).map(l => l.trim()).filter(l => !!l);
-    lines.forEach(line => {
-        let sides = line.split('=').map(l => l.trim()).filter(l => !!l);
-        if (sides.length != 2)
-          this.valid = false;
-        else
-        {
-          const lhs = sides[0];
-          const rhs = sides[1];
-          let parse = rhs.split('"');
-          let items: DetailItem[] = [];
-          let state = 'expr';
-          parse.forEach(subexpr => {
-              if (state === 'expr')
-              {
-                if (subexpr.length)
-                {
-                  // Don't allow unsafe actions
-                  if (reInvalidChars.test(subexpr))
-                    items.push({ text: subexpr });
-                  else
-                    items.push({ expr: subexpr });
-                }
-                state = 'text';
-              }
-              else  // state === 'text'
-              {
-                if (subexpr.length)
-                  items.push({ text: subexpr });
-                state = 'expr';
-              }
-            });
-          this.lines.push( { label: lhs, items } );
-        }
-      });
-  }
-
-  format(o: any): DetailResult[]
-  {
-    if (!o) return [];
-    // Make sure there is a total field
-    o = Util.deepCopy(o);
-    if (o['Tot'] !== undefined)
-      o['_tot'] = o['Tot'];
+    this.pattern = pattern.trim();
+    let a = reExpr.exec(pattern);
+    if (a && a.length == 2)
+    {
+      this.items = [];
+      const expr = a[1];
+      const parse = expr.split('"');
+      let state = 'expr';
+      parse.forEach(subexpr => {
+          if (state === 'expr')
+          {
+            if (subexpr.length)
+            {
+              // Don't allow unsafe actions
+              if (reInvalidChars.test(subexpr))
+                this.items.push({ text: subexpr });
+              else
+                this.items.push({ expr: subexpr });
+            }
+            state = 'text';
+          }
+          else  // state === 'text'
+          {
+            if (subexpr.length)
+              this.items.push({ text: subexpr });
+            state = 'expr';
+          }
+        });
+    }
     else
     {
-      let t = 0;
-      Object.values(o).forEach((v: any) => {
-          if (!isNaN(v) && typeof v === 'number')
-            t += v;
-        });
-      o['_tot'] = t;
+      this.valid = false;
+      this.items = [ { text: 'invalid' } ];
     }
-    let result: DetailResult[] = [];
-    this.lines.forEach(line => {
-        let n: number;
-        let av = line.items.map(di => {
-            if (di.text)
-              return di.text;
-            else
-            {
-              let e = new Evaluator(di.expr);
-              n = e.eval(o);
-              return Util.precisionRound(n, 0).toLocaleString();
-            }
+  }
+
+  prepare(o: any): any
+  {
+    if (o)
+    {
+      // Make sure there is a total field
+      o = Util.deepCopy(o);
+      if (o['Tot'] !== undefined)
+        o['_tot'] = o['Tot'];
+      else
+      {
+        let t = 0;
+        Object.values(o).forEach((v: any) => {
+            if (!isNaN(v) && typeof v === 'number')
+              t += v;
           });
-        result.push({ k: line.label, n, v: av.join('') });
+        o['_tot'] = t;
+      }
+    }
+    return o;
+  }
+
+  format(o: any): DetailResult
+  {
+    if (!o) return { n: 0, v: '' };
+    let n: number;
+    let av = this.items.map(di => {
+        if (di.text)
+          return di.text;
+        else
+        {
+          let e = new Evaluator(di.expr);
+          n = e.eval(o);
+          return Util.precisionRound(n, 0).toLocaleString();
+        }
       });
-    return result;
+    return { n, v: av.join('') }
   }
 }
