@@ -19,14 +19,19 @@ const reParam = /^__\d+$/
 class Evaluator
 {
   expr: string;
+  _error: boolean;
 
   constructor(expr: string)
   {
     this.expr = expr;
+    this._error = false;
   }
+
+  get error(): boolean { return this._error }
 
   eval(o: any): number
   {
+    this._error = false;
     try
     {
       // Convert property names to valid Javascript to ensure expression safety
@@ -49,7 +54,17 @@ class Evaluator
         });
 
       // Remove any identifiers that aren't the simple parameters to prevent out-of-sandbox execution
-      safeexpr = safeexpr.replace(reIdentifier, (match) => { return reParam.test(match) ? match : "invalid" });
+      safeexpr = safeexpr.replace(reIdentifier,
+                                  (match) => {
+                                      let valid = reParam.test(match);
+                                      if (valid)
+                                        return match;
+                                      else
+                                      {
+                                        this._error = true;
+                                        return 'invalid';
+                                      }
+                                    });
 
       // Create a new function that accepts the variables as parameters
       // and evaluates the expression
@@ -61,6 +76,7 @@ class Evaluator
     }
     catch (err)
     {
+      this._error = true;
       return 0;
     }
   }
@@ -83,13 +99,13 @@ const reExpr = /^=(.*)$/
 
 export class FormatDetail
 {
-  valid: boolean;
   pattern: string;
   items: DetailItem[];
+  _error: boolean;
 
   constructor(pattern: string)
   {
-    this.valid = true;
+    this._error = false;
     this.pattern = pattern.trim();
     let a = reExpr.exec(pattern);
     if (a && a.length == 2)
@@ -121,10 +137,12 @@ export class FormatDetail
     }
     else
     {
-      this.valid = false;
+      this._error = true;
       this.items = [ { text: 'invalid' } ];
     }
   }
+
+  get error(): boolean { return this._error }
 
   static prepare(o: any): any
   {
@@ -149,7 +167,11 @@ export class FormatDetail
 
   format(o: any): DetailResult
   {
-    if (!o) return { n: 0, v: '' };
+    if (!o)
+    {
+      this._error = true;
+      return { n: 0, v: '' };
+    }
     let n: number;
     let av = this.items.map(di => {
         if (di.text)
@@ -158,6 +180,8 @@ export class FormatDetail
         {
           let e = new Evaluator(di.expr);
           n = e.eval(o);
+          if (! this._error)
+            this._error = e.error;
           return Util.precisionRound(n, 0).toLocaleString();
         }
       });
