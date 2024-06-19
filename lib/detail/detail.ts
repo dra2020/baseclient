@@ -16,6 +16,18 @@ import * as Util from '../util/all';
 const reIdentifier = /\b[a-zA-Z_$][a-zA-Z0-9_$]*\b/g;
 const reParam = /^__\d+$/
 
+function defaultNumberFormat(n: number): string
+{
+  return Util.precisionRound(n, 0).toLocaleString();
+}
+
+export interface DetailOptions
+{
+  numberFormat?: (n: number) => string,
+}
+
+const DefaultDetailOptions: DetailOptions = { numberFormat: defaultNumberFormat };
+
 class Evaluator
 {
   expr: string;
@@ -102,9 +114,11 @@ export class FormatDetail
   pattern: string;
   items: DetailItem[];
   _error: boolean;
+  options: DetailOptions;
 
-  constructor(pattern: string)
+  constructor(pattern: string, options?: DetailOptions)
   {
+    this.options = Util.shallowAssignImmutable(DefaultDetailOptions, options);
     this._error = false;
     this.pattern = pattern.trim();
     let a = reExpr.exec(pattern);
@@ -182,7 +196,7 @@ export class FormatDetail
           n = e.eval(o);
           if (! this._error)
             this._error = e.error;
-          return Util.precisionRound(n, 0).toLocaleString();
+          return this.options.numberFormat(n);
         }
       });
     return { n, v: av.join('') }
