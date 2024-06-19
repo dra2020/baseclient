@@ -708,3 +708,17 @@ export function wrapLon(lon: number): number
   let worlds = Math.floor((lon + 180) / 360);
   return lon - (worlds * 360);
 }
+
+let reNumber = /^\s*-?\d+(\.\d+)?([eE][+-]?\d+)?\s*$/;
+export function isNumber(s: string): boolean { return !!s && reNumber.test(s) }
+export function toNumber(a: any): number
+{
+  if (typeof a === 'number') return a;
+  if (typeof a === 'string' && !isNumber(a as string)) return NaN;
+  return Number(a);
+}
+export function toSafeNumber(a: any): number
+{
+  let n = toNumber(a);
+  if (isNaN(n) || typeof n !== 'number') return 0;
+}

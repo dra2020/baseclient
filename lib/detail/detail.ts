@@ -6,7 +6,7 @@
 // The formatting string is a statement of the form:
 //    =expr
 // Expr can be an arithmetic expression using +-/*()?: as operators and variables are the field
-// names of properties on the object passed in. The special field name _tot represents the
+// names of properties on the object passed in. The special field name Tot represents the
 // total of all properties. The expression may also include double-quoted strings that are
 // passed through (e.g. for use as labels = area" sqm")
 //
@@ -160,21 +160,19 @@ export class FormatDetail
 
   static prepare(o: any): any
   {
-    if (o)
+    if (o && o.Tot === undefined && o.Total === undefined)
     {
-      // Make sure there is a total field
+      // Add a total field
+      let t = 0;
+      Object.keys(o).forEach((k: string) => {
+          let v: any = o[k];
+          if (!isNaN(v) && typeof v === 'number')
+            t += v;
+        });
+
       o = Util.deepCopy(o);
-      if (o['Tot'] !== undefined)
-        o['_tot'] = o['Tot'];
-      else
-      {
-        let t = 0;
-        Object.values(o).forEach((v: any) => {
-            if (!isNaN(v) && typeof v === 'number')
-              t += v;
-          });
-        o['_tot'] = t;
-      }
+      o.Tot = t;
+      o.Total = t;
     }
     return o;
   }
