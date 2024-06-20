@@ -720,5 +720,5 @@ export function toNumber(a: any): number
 export function toSafeNumber(a: any): number
 {
   let n = toNumber(a);
-  if (isNaN(n) || typeof n !== 'number') return 0;
+  return (isNaN(n) || typeof n !== 'number') ? 0 : n;
 }
