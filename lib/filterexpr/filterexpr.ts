@@ -32,6 +32,13 @@ function isWhite(c: number): boolean
   return c === Space || c === Newline || c === Tab || c == CR;
 }
 
+function toString(a: any): string
+{
+  if (typeof a === 'object' && a && typeof a.value === 'string')
+    return a.value;
+  return String(a);
+}
+
 enum TokType
 {
   Text,
@@ -637,7 +644,7 @@ export class FilterExpr
       case TokType.Text:
         for (let p in o) if (o.hasOwnProperty(p) && (prop == null || p.toLowerCase() === prop))
         {
-          let s = String(o[p]);
+          let s = toString(o[p]);
           if (s)
           {
             let t = types ? types[p] : undefined;
