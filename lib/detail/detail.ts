@@ -16,17 +16,25 @@ import * as Util from '../util/all';
 const reIdentifier = /\b[a-zA-Z_$][a-zA-Z0-9_$]*\b/g;
 const reParam = /^__\d+$/
 
-function defaultNumberFormat(n: number): string
+// Number format: (locale|general|integer|currency).precision
+
+function formatNumber(n: number, format: string): string
 {
-  return Util.precisionRound(n, 0).toLocaleString();
+  if (!format) format = 'locale.0';
+  let parts = format.split('.');
+  let fmt = parts[0];
+  let precision = Number(parts[1] || '0');
+  n = Util.precisionRound(n, precision);
+  // Only have implementation for 'locale'
+  return n.toLocaleString();
 }
 
 export interface DetailOptions
 {
-  numberFormat?: (n: number) => string,
+  numberFormat?: string,
 }
 
-const DefaultDetailOptions: DetailOptions = { numberFormat: defaultNumberFormat };
+const DefaultDetailOptions: DetailOptions = { numberFormat: 'locale.0' };
 
 class Evaluator
 {
@@ -194,7 +202,7 @@ export class FormatDetail
           n = e.eval(o);
           if (! this._error)
             this._error = e.error;
-          return this.options.numberFormat(n);
+          return formatNumber(n, this.options.numberFormat);
         }
       });
     return { n, v: av.join('') }
