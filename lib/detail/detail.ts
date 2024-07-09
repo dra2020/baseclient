@@ -24,9 +24,8 @@ function formatNumber(n: number, format: string): string
   let parts = format.split('.');
   let fmt = parts[0];
   let precision = Number(parts[1] || '0');
-  n = Util.precisionRound(n, precision);
   // Only have implementation for 'locale'
-  return n.toLocaleString();
+  return n.toLocaleString(undefined, { maximumFractionDigits: precision, minimumFractionDigits: precision } );
 }
 
 export interface DetailOptions
