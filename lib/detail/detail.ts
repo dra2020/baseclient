@@ -113,7 +113,7 @@ export interface DetailResult
   v: string,  // value
 }
 
-const reInvalidChars = /[\.\[\]\\]/;
+const reInvalidChars = /[\[\]\\]/;
 const reExpr = /^=(.*)$/
 
 export class FormatDetail
