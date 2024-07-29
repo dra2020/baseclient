@@ -276,9 +276,9 @@ class Parser
     this.clauses = clauses;
     this.combineParenthetical();
     this.convertOpToText();
-    this.combineUnary();
-    this.convertOpToText();
     this.combineBinary(TokType.Colon);
+    this.convertOpToText();
+    this.combineUnary();
     this.convertOpToText();
     this.combineBinary(TokType.And);
     this.convertOpToText();
