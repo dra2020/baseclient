@@ -87,6 +87,26 @@ function tokIsUnary(tt: TokType): boolean
     case TokType.And: return false;
     case TokType.Or: return false;
     case TokType.Colon: return false;
+    case TokType.GreaterThan: return false;
+    case TokType.GreaterThanEqual: return false;
+    case TokType.Equal: return false;
+    case TokType.LessThan: return false;
+    case TokType.LessThanEqual: return false;
+    case TokType.NotEqual: return false;
+  }
+}
+
+function tokIsArithmetic(tt: TokType): boolean
+{
+  switch (tt)
+  {
+    case TokType.Text: return false;
+    case TokType.OpenParen: return false;
+    case TokType.CloseParen: return false;
+    case TokType.Not: return false;
+    case TokType.And: return false;
+    case TokType.Or: return false;
+    case TokType.Colon: return false;
     // Nominally binary, but written as "prop: < 3" so appears as unary operator where test is comparative to prop value
     case TokType.GreaterThan: return true;
     case TokType.GreaterThanEqual: return true;
@@ -276,6 +296,8 @@ class Parser
     this.clauses = clauses;
     this.combineParenthetical();
     this.convertOpToText();
+    this.combineArithmetic();
+    this.convertOpToText();
     this.combineBinary(TokType.Colon);
     this.convertOpToText();
     this.combineUnary();
@@ -359,6 +381,23 @@ class Parser
       {
         this.clauses.splice(i, 1);
         i--;
+      }
+    }
+  }
+
+  combineArithmetic(): void
+  {
+    // go backwards to handle not not
+    for (let i: number = this.clauses.length-1; i >= 0; i--)
+    {
+      let c = this.clauses[i];
+      if (tokIsArithmetic(c.op.tt))
+      {
+        let argclause = (i < this.clauses.length-1) ? { op: c.op, operand1: this.clauses[i+1] } : undefined;
+        if (argclause)
+          this.clauses.splice(i, 2, argclause);
+        else
+          this.clauses.splice(i, 1);
       }
     }
   }
