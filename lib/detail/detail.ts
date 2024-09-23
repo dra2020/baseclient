@@ -12,9 +12,12 @@
 //
 
 import * as Util from '../util/all';
+//import { Util } from '@dra2020/baseclient';
 
 const reIdentifier = /\b[a-zA-Z_$][a-zA-Z0-9_$]*\b/g;
-const reParam = /^__\d+$/
+const reIdentifierOrString = /([a-zA-Z_$][a-zA-Z0-9_$]*)|(['"])(?:(?=(\\?))\3.)*?\2/g;
+const reParam = /^__\d+$/;
+const reString = /^['"]/;
 
 // Number format: (locale|general|integer|currency).precision
 
@@ -37,18 +40,20 @@ const DefaultDetailOptions: DetailOptions = { numberFormat: 'locale.0' };
 
 class Evaluator
 {
+  options: DetailOptions;
   expr: string;
   _error: boolean;
 
-  constructor(expr: string)
+  constructor(expr: string, options?: DetailOptions)
   {
+    this.options = Util.shallowAssignImmutable(DefaultDetailOptions, options);
     this.expr = expr;
     this._error = false;
   }
 
   get error(): boolean { return this._error }
 
-  eval(o: any): number
+  eval(o: any): any
   {
     this._error = false;
     try
@@ -65,18 +70,13 @@ class Evaluator
       let values = Object.values(o);
       let safeexpr = this.expr;
       let safenames = names.map(n => namemap[n]);
-      // replace longest field names first in case they contain substrings of short field names
-      names.sort((n1: string, n2: string) => n2.length - n1.length);
-      names.forEach((n: string, i: number) => {
-          while (safeexpr.indexOf(n) >= 0)
-            safeexpr = safeexpr.replace(n, namemap[n]);
-        });
 
-      // Remove any identifiers that aren't the simple parameters to prevent out-of-sandbox execution
-      safeexpr = safeexpr.replace(reIdentifier,
+      // Replace valid identifiers with safe version
+      safeexpr = safeexpr.replace(reIdentifierOrString,
                                   (match) => {
-                                      let valid = reParam.test(match);
-                                      if (valid)
+                                      if (namemap[match])
+                                        return namemap[match];
+                                      else if (match === '__format' || reString.test(match))
                                         return match;
                                       else
                                       {
@@ -85,13 +85,29 @@ class Evaluator
                                       }
                                     });
 
+      // Remove any identifiers that aren't the simple parameters to prevent out-of-sandbox execution
+      safeexpr = safeexpr.replace(reIdentifierOrString,
+                                  (match) => {
+                                      let valid = reParam.test(match) || match === '__format' || reString.test(match);
+                                      if (valid)
+                                        return match;
+                                      else
+                                      {
+                                        this._error = true;
+                                        return 'invalid';
+                                      }
+                                    });
+      let __format = (n: number) => { return formatNumber(n, this.options.numberFormat) };
+      safenames.push('__format');
+      values.push(__format);
+
       // Create a new function that accepts the variables as parameters
       // and evaluates the expression
       const func = new Function(...safenames, `return ${safeexpr};`);
 
       // Call the function with the variable values
       let r = func(...values);
-      return isNaN(r) ? 0 : r;
+      return typeof r === 'string' ? r : ((typeof r !== 'number' || isNaN(r)) ? 0 : r);
     }
     catch (err)
     {
@@ -131,30 +147,8 @@ export class FormatDetail
     let a = reExpr.exec(pattern);
     if (a && a.length == 2)
     {
-      this.items = [];
       const expr = a[1];
-      const parse = expr.split('"');
-      let state = 'expr';
-      parse.forEach(subexpr => {
-          if (state === 'expr')
-          {
-            if (subexpr.length)
-            {
-              // Don't allow unsafe actions
-              if (reInvalidChars.test(subexpr))
-                this.items.push({ text: subexpr });
-              else
-                this.items.push({ expr: subexpr });
-            }
-            state = 'text';
-          }
-          else  // state === 'text'
-          {
-            if (subexpr.length)
-              this.items.push({ text: subexpr });
-            state = 'expr';
-          }
-        });
+      this.items = [ { expr } ];
     }
     else
     {
@@ -191,17 +185,20 @@ export class FormatDetail
       this._error = true;
       return { n: 0, v: '' };
     }
-    let n: number;
+    let n: any = 0;
     let av = this.items.map(di => {
         if (di.text)
           return di.text;
         else
         {
-          let e = new Evaluator(di.expr);
+          let e = new Evaluator(di.expr, this.options);
           n = e.eval(o);
           if (! this._error)
             this._error = e.error;
-          return formatNumber(n, this.options.numberFormat);
+          if (typeof n === 'string')
+            return n;
+          else
+            return formatNumber(n, this.options.numberFormat);
         }
       });
     return { n, v: av.join('') }
