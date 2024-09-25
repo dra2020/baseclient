@@ -24,6 +24,7 @@ const reString = /^['"]/;
 function formatNumber(n: number, format: string): string
 {
   if (!format) format = 'locale.0';
+  if (isNaN(n)) n = 0;
   let parts = format.split('.');
   let fmt = parts[0];
   let precision = Number(parts[1] || '0');
