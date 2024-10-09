@@ -101,4 +101,15 @@ export class MultiBlockMapping
     if (this.entries.length)
       Object.keys(this.entries[0].bm).forEach(blockid => cb(blockid));
   }
+
+  // Just walks first map
+  forEachRev(cb: (geoidid: string, blocks: string[]) => void): void
+  {
+    for (let i = 0; i < this.entries.length; i++)
+    {
+      let e = this.entries[i];
+      if (! e.rbm) e.rbm = reverseBlockMapping(e.bm);
+      Object.keys(e.rbm).forEach(geoid => cb(geoid, e.rbm[geoid]));
+    }
+  }
 }
