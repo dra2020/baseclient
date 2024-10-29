@@ -327,7 +327,7 @@ export function deepEqual(o1: any, o2: any, options?: EqOptions): boolean
   {
     if (options && options.omitKey && options.omitKey[p])
       continue;
-    if (o2[p] === undefined)
+    if (o2[p] === undefined && o1[p] !== undefined)
       return false;
     if (! deepEqual(o1[p], o2[p], options))
       return false;
@@ -337,7 +337,7 @@ export function deepEqual(o1: any, o2: any, options?: EqOptions): boolean
   {
     if (options && options.omitKey && options.omitKey[p])
       continue;
-    if (o1[p] === undefined)
+    if (o1[p] === undefined && o2[p] !== undefined)
       return false;
   }
 
