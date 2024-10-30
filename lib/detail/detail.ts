@@ -14,8 +14,8 @@
 import * as Util from '../util/all';
 //import { Util } from '@dra2020/baseclient';
 
-const reIdentifier = /\b[a-zA-Z_$][a-zA-Z0-9_$]*\b/g;
-const reIdentifierOrString = /([a-zA-Z_$][a-zA-Z0-9_$]*)|(['"])(?:(?=(\\?))\3.)*?\2/g;
+const reIdentifierOrStringOrNumber = /([a-zA-Z0-9_$][a-zA-Z0-9_$]*)|(['"])(?:(?=(\\?))\3.)*?\2/g;
+const reNumber = /[0-9][0-9]*/;
 const reParam = /^__\d+$/;
 const reString = /^['"]/;
 
@@ -73,10 +73,12 @@ class Evaluator
       let safenames = names.map(n => namemap[n]);
 
       // Replace valid identifiers with safe version
-      safeexpr = safeexpr.replace(reIdentifierOrString,
+      safeexpr = safeexpr.replace(reIdentifierOrStringOrNumber,
                                   (match) => {
                                       if (namemap[match])
                                         return namemap[match];
+                                      else if (reNumber.test(match))
+                                        return match;
                                       else if (match === '__format' || reString.test(match))
                                         return match;
                                       else
@@ -87,9 +89,12 @@ class Evaluator
                                     });
 
       // Remove any identifiers that aren't the simple parameters to prevent out-of-sandbox execution
-      safeexpr = safeexpr.replace(reIdentifierOrString,
+      safeexpr = safeexpr.replace(reIdentifierOrStringOrNumber,
                                   (match) => {
-                                      let valid = reParam.test(match) || match === '__format' || reString.test(match);
+                                      let valid = reParam.test(match)
+                                                  || match === '__format'
+                                                  || reString.test(match)
+                                                  || reNumber.test(match);
                                       if (valid)
                                         return match;
                                       else
