@@ -44,6 +44,27 @@ export interface NormalizeOptions
 }
 const NormalizeAll: NormalizeOptions = { joinPolygons: true, checkRewind: true, ensureID: true };
 
+export function applyCanonicalID(col: GeoFeatureCollection): void
+{
+  if (col && Array.isArray(col.features))
+    col.features.forEach((f: GeoFeature, n: number) => { f.properties.id = String(n+1) });
+}
+
+export function isValidId(col: GeoFeatureCollection): boolean
+{
+  if (! col || ! Array.isArray(col.features)) return true;
+
+  let set = new Set<string>();
+  for (let i = 0; i < col.features.length; i++)
+  {
+    let f = col.features[i];
+    if (typeof f.properties.id !== 'string') return false;    // id must be string
+    if (set.has(f.properties.id)) return false;               // id must be unique
+    set.add(f.properties.id);
+  }
+  return true;
+}
+
 // set the canonical 'id' property from the best property value.
 // if joinPolygons is true, we do not enforce uniqueness.
 //
@@ -58,7 +79,6 @@ export function geoEnsureID(col: GeoFeatureCollection, options?: NormalizeOption
   if (col && col.features && col.features.length > 0)
   {
     let f = col.features[0];
-    if (f.properties.id !== undefined) return;  // short-cut - assume if 'id' is set, we're all good.
     props.forEach(p => {
         if (prop === undefined)
           if (f.properties[p] !== undefined)
@@ -71,12 +91,13 @@ export function geoEnsureID(col: GeoFeatureCollection, options?: NormalizeOption
           }
       });
     if (prop)
-      col.features.forEach(f => { f.properties.id = f.properties[prop] });
-    else
     {
-      let n = 1;
-      col.features.forEach(f => { f.properties.id = String(n++) });
+      col.features.forEach(f => { f.properties.id = f.properties[prop] });
+      if (! isValidId(col))
+        applyCanonicalID(col);
     }
+    else
+      applyCanonicalID(col);
   }
 }
 
