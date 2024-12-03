@@ -132,6 +132,13 @@ export function createGuid(): string
   });
 }
 
+const reGuid = /.*-.*-.*-.*-/;
+
+export function isGuid(s: string): boolean
+{
+  return reGuid.test(s) && s.length >= 36
+}
+
 export function createKeyedGuid(key: string): string
 {
     return `xxxxxxxx-xxxx-${key}xxx-yxxx-xxxxxxxxxxxx`.replace(/[xy]/g, function(c) {
