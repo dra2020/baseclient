@@ -58,6 +58,7 @@ export function isValidId(col: GeoFeatureCollection): boolean
   for (let i = 0; i < col.features.length; i++)
   {
     let f = col.features[i];
+    if (typeof f.properties.id === 'number') f.properties.id = String(f.properties.id); // Fix old 2016_BG collections
     if (typeof f.properties.id !== 'string') return false;    // id must be string
     if (set.has(f.properties.id)) return false;               // id must be unique
     set.add(f.properties.id);
