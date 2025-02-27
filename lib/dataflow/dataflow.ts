@@ -35,6 +35,18 @@ export class DataFlow
   }
 
   // override in subclass
+  destroy(): void
+  {
+    this._destroy();
+  }
+
+  _destroy(): void
+  {
+    // Premise is that the 'id' value may contain significant storage
+    this.usesList.forEach(ui => { delete ui.id });
+  }
+
+  // override in subclass
   dfid(): any { return null }
 
   // override in subclass
