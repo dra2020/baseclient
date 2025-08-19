@@ -310,6 +310,35 @@ export function deepEqual(o1: any, o2: any, options?: EqOptions): boolean
   if (typeof o1 !== 'object' || o1 == null) return false;
   if (typeof o2 !== 'object' || o2 == null) return false;
 
+  // Special case Set
+  if (o1 instanceof Set && o2 instanceof Set)
+  {
+    if (o1.size !== o2.size) return false;
+    let eq = true;
+    o1.forEach((k: any) => { if (! o2.has(k)) eq = false });
+    return eq;
+  }
+
+  // Special case Map
+  if (o1 instanceof Map && o2 instanceof Map)
+  {
+    if (o1.size !== o2.size) return false;
+    let eq = true;
+    o1.forEach((v1: any, k1: any) => {
+        if (eq)
+        {
+          if (! o2.has(k1))
+            eq = false;
+          else
+          {
+            let v2 = o2.get(k1);
+            eq = deepEqual(v1, v2, options);
+          }
+        }
+      });
+    return eq;
+  }
+
   // Special case array
   if (Array.isArray(o1))
   {
