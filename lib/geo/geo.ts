@@ -536,6 +536,8 @@ export class GeoMultiCollection
       let e = this.nthEntry(0);
       if (n == 1)
       {
+        // Note that this is potentially invalid shortcut when some features are hidden from base geometry.
+        // Could test overall count of objects vs. this count to check.
         this.all.topo = this._topo(e);
         this.all.col = this.all.col || e.col;
         this.all.map = this.all.map || e.map;
