@@ -589,7 +589,19 @@ export function deepCopy(src: any): any
 
   if (typeof src === 'object')
   {
-    if (Array.isArray(src))
+    if (src instanceof Set)
+    {
+      let dst = new Set<any>();
+      src.forEach((i: any) => { dst.add(deepCopy(i)) });
+      return dst;
+    }
+    else if (src instanceof Map)
+    {
+      let dst = new Map<any, any>();
+      src.forEach((v: any, k: any) => { dst.set(deepCopy(k), deepCopy(v)) });
+      return dst;
+    }
+    else if (Array.isArray(src))
     {
       let dst: any[] = [];
 
