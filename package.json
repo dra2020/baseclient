@@ -1,13 +1,14 @@
 {
   "name": "@dra2020/baseclient",
-  "version": "1.0.159",
+  "version": "1.0.160",
   "description": "Utility functions for Javascript projects.",
   "main": "dist/baseclient.js",
   "types": "./dist/all/all.d.ts",
   "scripts": {
     "test": "echo \"No test defined.\"",
     "build": "webpack",
-    "webpack": "node_modules/.bin/webpack"
+    "webpack": "node_modules/.bin/webpack",
+    "analyzebundle": "webpack --mode production --profile --json > dist/stats.json; node_modules/.bin/webpack-bundle-analyzer dist/stats.json dist"
   },
   "files": [
     "dist/",
@@ -39,6 +40,7 @@
     "tsify": "^5.0.4",
     "typescript": "^5.8.3",
     "webpack": "^5.99.5",
+    "webpack-bundle-analyzer": "^4.10.2",
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
