@@ -280,9 +280,9 @@ export const EthnicBackgroundColor: string[] = [
 
 export const defaultDistrictsPalette = 'jet_r';
 
-const BigPalettes: string[] = [
-  'jet_r','turbo_r','inferno_r','viridis_r','magma_r','plasma_r','greys_r','bone_r',
-  'jet','turbo','inferno','viridis','magma','plasma','greys','bone'
+export const BigPalettes: string[] = [
+  'jet_r','turbo_r','inferno_r','viridis_r','magma_r','plasma_r','Greys','bone_r',
+  'jet','turbo','inferno','viridis','magma','plasma','bone'
 ];
 
 // OrderedColorTable is lazily populated
