@@ -4,7 +4,8 @@
 //    and Color Brewer palettes (Accent, Blues, BrBG, BuGn, BuPu, CMRmap, Dark2, GnBu, Greens, Greys, OrRd, Oranges, PRGn, Paired, Pastel1,
 //    Pastel2, PiYG, PuBu, PuBuGn, PuOr, PuRd, Purples, RdBu, RdGy, RdPu, RdYlBu, RdYlGn, Reds, Set1, Set2, Set3, Spectral,
 //    Wistia, YlGn, YlGnBu, YlOrBr, YlOrRd)
-import { ColorTable } from './colortable';
+import { ColorTable, ColorBrewerSchemeNames } from './colortable';
+export { ColorTable, ColorBrewerSchemeNames };
 
 export const MaxOrderedColors: number = 50;
 export const MaxColors: number = MaxOrderedColors * 3;    // Tied to orderedColors()
