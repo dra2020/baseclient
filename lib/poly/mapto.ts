@@ -4,6 +4,7 @@ import * as PP  from './polypack';
 import * as PL from './polylabel';
 import * as BB from './boundbox';
 import { polyContainsPoint } from './pointinpoly';
+import { Control } from '../control/all';
 
 function setLabels(c: G.GeoFeatureCollection): void
 {
@@ -33,7 +34,7 @@ function setLabels(c: G.GeoFeatureCollection): void
 //
 //  The return value is an object that maps the block feature ids to the district feature id.
 //
-export function polyMapToByCentroid(districts: G.GeoFeatureCollection, centroids: G.GeoCentroidMap): any
+export function polyMapToByCentroid(districts: G.GeoFeatureCollection, centroids: G.GeoCentroidMap, control?: Control): any
 {
   let map: any = {};
 
@@ -43,7 +44,11 @@ export function polyMapToByCentroid(districts: G.GeoFeatureCollection, centroids
   let aDistricts: number[] = fs.map(f => P.polyArea(f));
 
   // Walk over blocks, mapping centroid to district
-  Object.keys(centroids).forEach(blockid => {
+  let canceled = false;
+  let keys = Object.keys(centroids);
+  keys.forEach((blockid: string, k: number) => {
+      canceled = canceled || control?.isCanceled();
+      if (canceled) return;
       let x = centroids[blockid].x;
       let y = centroids[blockid].y;
 
@@ -67,12 +72,14 @@ export function polyMapToByCentroid(districts: G.GeoFeatureCollection, centroids
             iLow = fIn[i];
         map[blockid] = fs[iLow].properties.id;
       }
+
+      if (control) control.statusUpdate(k, keys.length);
     });
 
-  return map;
+  return canceled ? undefined : map;
 }
 
-export function polyMapTo(districts: G.GeoFeatureCollection, blocks: G.GeoFeatureCollection): any
+export function polyMapTo(districts: G.GeoFeatureCollection, blocks: G.GeoFeatureCollection, control?: Control): any
 {
   // Cache labelx, labely if necessary
   setLabels(blocks);
@@ -82,5 +89,5 @@ export function polyMapTo(districts: G.GeoFeatureCollection, blocks: G.GeoFeatur
     centroids[f.properties.id] = { x: f.properties.labelx, y: f.properties.labely }
     });
 
-  return polyMapToByCentroid(districts, centroids);
+  return polyMapToByCentroid(districts, centroids, control);
 }

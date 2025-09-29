@@ -29,3 +29,5 @@ import * as DataFlow from '../dataflow/all';
 export { DataFlow }
 import * as Detail from '../detail/all';
 export { Detail }
+import * as Control from '../control/all';
+export { Control }

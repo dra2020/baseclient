@@ -25,6 +25,12 @@ export class Elapsed
     if (this.tDur) this.tDur = undefined;
   }
 
+  restart(): void
+  {
+    if (this.tStart === undefined) this.start();
+    delete this.tDur;
+  }
+
   end(): void
   {
     if (this.tStart === undefined) this.start();
@@ -43,6 +49,13 @@ export class Elapsed
       return this.tDur;
   }
 
+  mscur(): number
+  {
+    let ms = this.ms();
+    this.restart();
+    return ms;
+  }
+
   nano(): number
   {
     if (this.tDur === undefined) this.end();
@@ -50,6 +63,13 @@ export class Elapsed
       return (this.tDur[0]*1000000000) + this.tDur[1];
     else
       return this.tDur * 1000000;
+  }
+
+  nanocur(): number
+  {
+    let nano = this.nano();
+    this.restart();
+    return nano;
   }
 }
 

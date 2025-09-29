@@ -11,13 +11,17 @@ export type HideMap = { [id: string]: boolean };
 
 // Tracing/debugging aid
 let metrics: { [action: string]: { count: number, total: number } } = {};
+const MinRecordTotal = 500;
 
 function record(action: string, total: number): void
 {
-  if (metrics[action] === undefined)
-    metrics[action] = { count: 0, total: 0 };
-  metrics[action].count++;
-  metrics[action].total += total;
+  if (total > MinRecordTotal)
+  {
+    if (metrics[action] === undefined)
+      metrics[action] = { count: 0, total: 0 };
+    metrics[action].count++;
+    metrics[action].total += total;
+  }
 }
 
 export function dumpMetrics(): void
@@ -25,6 +29,7 @@ export function dumpMetrics(): void
   Object.keys(metrics).forEach(action => {
       console.log(`G.${action}: count: ${metrics[action].count}, total: ${metrics[action].total}`);
     });
+  metrics = {};
 }
 
 export function hidemapConcat(...args: HideMap[]): HideMap
