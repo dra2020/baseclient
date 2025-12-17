@@ -10,6 +10,7 @@ export * from './blend';
 export * from './cartesian';
 export * from './minbound';
 export * from './polyround';
+export * from './polyconvert';
 export * from './topo';
 export * from './selfintersect';
 export * from './shamos';
