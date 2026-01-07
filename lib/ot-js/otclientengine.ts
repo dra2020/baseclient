@@ -34,13 +34,12 @@ export class OTClientEngine extends OTE.OTEngine
 			this.clientID = cid;
 			this.initialize();
       this.bReadOnly = false;
-      this.valCache = {};
 		}
 
 	initialize(): void
 		{
       if (this.prefailCache === undefined && this.clientSequenceNo > 0)
-        this.prefailCache = this.valCache;
+        this.prefailCache = this.toValue();
 			this.clientSequenceNo = 0;
 			this.isNeedAck = false;
 			this.isNeedResend = false;
@@ -71,11 +70,15 @@ export class OTClientEngine extends OTE.OTEngine
 
   toPartialValue(resourceName: string): any
     {
+      if (! this.valCache)
+        this.valCache = {};
       return this.valCache[resourceName];
     }
 
 	toValue(): any
 		{
+      if (! this.valCache)
+        this.valCache = this.stateLocal.toValue();
 			return this.valCache;
 		}
 
@@ -155,7 +158,7 @@ export class OTClientEngine extends OTE.OTEngine
 		{
       console.log('otclientengine: failbackToInitialState');
       if (this.prefailCache === undefined)
-        this.prefailCache = this.valCache;
+        this.prefailCache = this.toValue();
 			this.initialize();
 		}
 
@@ -164,7 +167,7 @@ export class OTClientEngine extends OTE.OTEngine
 		{
       console.log('otclientengine: failbackToServerState');
       if (this.prefailCache === undefined)
-        this.prefailCache = this.valCache;
+        this.prefailCache = this.toValue();
 			this.stateLocal = this.stateServer.copy();
 			this.isNeedAck = false;
 			this.actionSentClient.empty();
@@ -172,7 +175,7 @@ export class OTClientEngine extends OTE.OTEngine
 			this.actionServerInterposedSentClient.empty();
 			this.actionAllPendingClient.empty();
 			this.actionAllClient.empty();
-      this.valCache = this.stateLocal.toValue();
+      delete this.valCache;
       this.emit('state');
 		}
 
@@ -284,7 +287,7 @@ export class OTClientEngine extends OTE.OTEngine
 						this.actionServerInterposedSentClient.compose(orig);
 
           // Let clients know
-          this.valCache = this.stateLocal.toValue();
+          delete this.valCache;
           this.emit('state');
 				}
 			}
@@ -318,7 +321,7 @@ export class OTClientEngine extends OTE.OTEngine
           this.actionAllClient.compose(orig);
           this.actionAllPendingClient.compose(orig);
           this.stateLocal.compose(orig);
-          this.valCache = this.stateLocal.toValue();
+          delete this.valCache;
           this.emit('state');
         }
         catch (err)
