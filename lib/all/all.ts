@@ -15,8 +15,8 @@ import * as OT from '../ot-js/all';
 export { OT };
 import * as OTE from '../ot-editutil/all';
 export { OTE };
-import { FilterExpr } from '../filterexpr/all';
-export { FilterExpr }
+import { FilterExpr, cacheFilterExpr } from '../filterexpr/all';
+export { FilterExpr, cacheFilterExpr }
 import * as G from '../geo/all';
 export { G };
 import * as Emit from '../emit/all';

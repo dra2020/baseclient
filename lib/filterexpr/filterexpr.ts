@@ -677,41 +677,54 @@ export class FilterExpr
 
   testClause(o: any, types: any, clause: Clause, prop?: string, relation?: TokType): boolean
   {
+    const filterProp = (p: string) => {
+        let s = toString(o[p]);
+        if (s)
+        {
+          let t = types ? types[p] : undefined;
+          if (t === 'skip')
+            return false;
+          if (t && t === 'date')
+            s = wordyDate(s);
+          s = s.toLowerCase();
+          if (relation === undefined)
+          {
+            if (s.indexOf(clause.op.text) >= 0)
+              return true;
+          }
+          else
+          {
+            let op2: any = isNaN(Number(clause.op.text)) ? clause.op.text : Number(clause.op.text);
+            let op1: any = typeof op2 === 'number' ? Number(s) : s;
+            switch (relation)
+            {
+              case TokType.Equal:            return op1 === op2;
+              case TokType.LessThan:         return op1 < op2;
+              case TokType.LessThanEqual:    return op1 <= op2;
+              case TokType.GreaterThanEqual: return op1 >= op2;
+              case TokType.GreaterThan:      return op1 > op2;
+              case TokType.NotEqual:         return op1 !== op2;
+            }
+          }
+        }
+      };
+
     if (clause == null) return true;
     switch (clause.op.tt)
     {
       case TokType.Text:
-        for (let p in o) if (o.hasOwnProperty(p) && (prop == null || p.toLowerCase() === prop))
+        if (o._filtercache)
         {
-          let s = toString(o[p]);
-          if (s)
-          {
-            let t = types ? types[p] : undefined;
-            if (t === 'skip')
-              continue;
-            if (t && t === 'date')
-              s = wordyDate(s);
-            s = s.toLowerCase();
-            if (relation === undefined)
-            {
-              if (s.indexOf(clause.op.text) >= 0)
-                return true;
-            }
-            else
-            {
-              let op2: any = isNaN(Number(clause.op.text)) ? clause.op.text : Number(clause.op.text);
-              let op1: any = typeof op2 === 'number' ? Number(s) : s;
-              switch (relation)
-              {
-                case TokType.Equal:            return op1 === op2;
-                case TokType.LessThan:         return op1 < op2;
-                case TokType.LessThanEqual:    return op1 <= op2;
-                case TokType.GreaterThanEqual: return op1 >= op2;
-                case TokType.GreaterThan:      return op1 > op2;
-                case TokType.NotEqual:         return op1 !== op2;
-              }
-            }
-          }
+          if (prop == null)
+            return o._filtercache.indexOf(clause.op.text) >= 0;
+          else
+            return filterProp(prop);
+        }
+        else
+        {
+          for (let p in o)
+            if ((prop == null || p === prop) && filterProp(p))
+              return true;
         }
         return false;
 
@@ -741,5 +754,30 @@ export class FilterExpr
         throw 'Unexpected token in clause';
     }
     // NOTREACHED
+  }
+}
+
+export function cacheFilterExpr(o: any, types: any): void
+{
+  if (o)
+  {
+    delete o._filtercache;
+    let a: string[] = [];
+    for (let p in o)
+    {
+      let s: string;
+      let t = types ? types[p] : undefined;
+      if (t === 'skip')
+        s = '';
+      else
+      {
+        s = toString(o[p]);
+        if (t === 'date')
+          s = wordyDate(s);
+        s = s.toLowerCase();
+      }
+      a.push(s);
+    }
+    o._filtercache = a.join('|'); // insert separator to reduce likelihood of spurious matches that cross property values
   }
 }
