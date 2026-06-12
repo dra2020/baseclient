@@ -166,8 +166,21 @@ export function topoToBuffer(coder: Util.Coder, topo: any): ArrayBuffer
   // Make sure we're packed
   T.topoPack(topo);
   let savepack = topo.packed;
+  // On-disk format predates the topology.packed.objectArcs WeakMap: each object
+  // carried its own `packedarcs: number` field in the serialized JSON. Preserve
+  // that format. We temporarily project the WeakMap entries back onto each object
+  // before stringifying, then strip them so the in-memory topology is unchanged.
+  let projected: any[] = [];
+  if (savepack.objectArcs)
+    for (let id in topo.objects)
+    {
+      let o = topo.objects[id];
+      let off = savepack.objectArcs.get(o);
+      if (off !== undefined) { o.packedarcs = off; projected.push(o); }
+    }
   delete topo.packed;
   let json = JSON.stringify(topo);
+  projected.forEach(o => { delete o.packedarcs; });
   let byteLength = HeaderSize;  // 3 lengths + padding
   let stringLength = sizeOfString(coder, json);
   stringLength += pad(stringLength, 8);
@@ -215,5 +228,19 @@ export function topoFromBuffer(coder: Util.Coder, ab: ArrayBuffer): any
   topo.packed = {};
   topo.packed.arcs = new Float64Array(ab, stringLength + HeaderSize, arcsByteLength / 8);
   topo.packed.arcindices = new Int32Array(ab, stringLength + HeaderSize + arcsByteLength, arcindicesByteLength / 4);
+  // Reconstruct the WeakMap from the legacy per-object `packedarcs` field, then
+  // strip the field so the object representation matches a freshly-packed one.
+  let objectArcs = new WeakMap<object, number>();
+  if (topo.objects)
+    for (let id in topo.objects)
+    {
+      let o = topo.objects[id];
+      if (o && o.packedarcs !== undefined)
+      {
+        objectArcs.set(o, o.packedarcs);
+        delete o.packedarcs;
+      }
+    }
+  topo.packed.objectArcs = objectArcs;
   return topo;
 }

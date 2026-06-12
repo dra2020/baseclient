@@ -8,6 +8,8 @@ export type GeoFeatureArray = GeoFeature[];
 export type GeoFeatureCollection = geojson.FeatureCollection;
 export type GeoCentroidMap = { [geoid: string]: { x: number, y: number } };
 export type HideMap = { [id: string]: boolean };
+export interface GeoFeatureMap { [id: string]: GeoFeature }
+
 
 // Tracing/debugging aid
 let metrics: { [action: string]: { count: number, total: number } } = {};
@@ -230,9 +232,43 @@ export function geoTopoToCollectionNonNull(topo: Poly.Topo): GeoFeatureCollectio
   return geoTopoToCollection(topo);
 }
 
-export interface GeoFeatureMap
+export type GeoFilterFunc = (s: string) => boolean | undefined;
+
+export function geoFilterFromHidden(hidden: any): GeoFilterFunc
 {
-  [id: string]: GeoFeature;  // Maps id to GeoFeature
+  if (Util.isEmpty(hidden)) return undefined;
+  return (s: string) => { return !hidden[s] }
+}
+
+export function geoFilteredTopo(topo: Poly.Topo, filter: GeoFilterFunc): Poly.Topo
+{
+  if (!topo || !filter)
+    return topo;
+  let copy: Poly.Topo = Util.shallowCopy(topo);
+  copy.objects = {};
+  Object.keys(topo.objects).forEach(geoid => {
+      if (filter(geoid))
+        copy.objects[geoid] = topo.objects[geoid];
+    });
+  return copy;
+}
+
+export function geoFilteredCollection(col: GeoFeatureCollection, filter: GeoFilterFunc): GeoFeatureCollection
+{
+  if (!col || !filter)
+    return col
+  let copy: GeoFeatureCollection = Util.shallowCopy(col);
+  copy.features = col.features.filter(f => filter(f.properties.id));
+  return copy;
+}
+
+export function geoFilteredMap(map: GeoFeatureMap, filter: GeoFilterFunc): GeoFeatureMap
+{
+  if (!map || !filter)
+    return map;
+  let copy: GeoFeatureMap = {};
+  Object.keys(map).forEach(geoid => { if (filter(geoid)) copy[geoid] = map[geoid] });
+  return copy;
 }
 
 export type FeatureFunc = (f: GeoFeature) => void;
@@ -326,8 +362,11 @@ export class GeoMultiCollection
       });
     for (let p in multi.hidden) if (multi.hidden.hasOwnProperty(p))
     {
-      this.hidden[p] = true;
-      this._onChange();
+      if (! this.hidden[p])
+      {
+        this.hidden[p] = true;
+        this._onChange();
+      }
     }
   }
 
@@ -344,12 +383,17 @@ export class GeoMultiCollection
         // Make sure all collection is created
         if (!multi.all.topo && !multi.all.col && !multi.all.map)
         {
-          // Create cheapest one (collection if I need to create, otherwise copy from single entry)
+          // Make sure at least one all entry is built, preferably topo if there is a base topo
+          let e = multi.entries['main'] ?? multi.nthEntry(0);
           if (nEntries > 1)
-            multi.allCol();
+          {
+            if (e.topo)
+              multi.allTopo();
+            else
+              multi.allCol();
+          }
           else
           {
-            let e = multi.nthEntry(0);
             multi.all.topo = e.topo;
             multi.all.col = e.col;
             multi.all.map = e.map;
@@ -538,21 +582,21 @@ export class GeoMultiCollection
     {
       // optimise case where one entry
       let n = this.nEntries;
-      let e = this.nthEntry(0);
+      let e = this.entries['main'] || this.nthEntry(0);
       if (n == 1)
       {
-        // Note that this is potentially invalid shortcut when some features are hidden from base geometry.
-        // Could test overall count of objects vs. this count to check.
-        this.all.topo = this._topo(e);
-        this.all.col = this.all.col || e.col;
-        this.all.map = this.all.map || e.map;
+        let filter = geoFilterFromHidden(this.hidden);
+        this.all.topo = geoFilteredTopo(this._topo(e), filter);
+        this.all.col = this.all.col || geoFilteredCollection(e.col, filter);
+        this.all.map = this.all.map || geoFilteredMap(e.map, filter);
       }
       else if (e.topo)
       {
-        // Old-style, goes through map (to filter hidden) and then collection
-        // this.all.topo = geoCollectionToTopoNonNull(this.allCol());
         // New style, use splice on packed topologies
-        let filterout = Util.isEmpty(this.hidden) ? null : this.hidden; // splice function requires NULL for empty
+        let filterout = this.someHidden() ? this.hidden : null; // splice function requires NULL for empty
+        // DEBUGGING
+        filterout = null;
+        // DEBUGGING
         let topoarray = Object.values(this.entries).filter((e: GeoEntry) => this._length(e) > 0)
           .map((e: GeoEntry) => { return { topology: this._topo(e), filterout } });
         this.all.topo = topoarray.length == 0 ? null : topoarray.length == 1 ? topoarray[0].topology : Poly.topoSplice(topoarray);
@@ -725,6 +769,11 @@ export class GeoMultiCollection
           m.add(e.tag, null, { type: 'FeatureCollection', features: features }, null);
       });
     return m;
+  }
+
+  someHidden(): boolean
+  {
+    return !Util.isEmpty(this.hidden)
   }
 }
 
