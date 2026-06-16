@@ -594,9 +594,6 @@ export class GeoMultiCollection
       {
         // New style, use splice on packed topologies
         let filterout = this.someHidden() ? this.hidden : null; // splice function requires NULL for empty
-        // DEBUGGING
-        filterout = null;
-        // DEBUGGING
         let topoarray = Object.values(this.entries).filter((e: GeoEntry) => this._length(e) > 0)
           .map((e: GeoEntry) => { return { topology: this._topo(e), filterout } });
         this.all.topo = topoarray.length == 0 ? null : topoarray.length == 1 ? topoarray[0].topology : Poly.topoSplice(topoarray);
