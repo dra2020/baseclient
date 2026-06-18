@@ -121,6 +121,7 @@ export interface SessionProps
   published?: string;
   locked?: boolean;
   official: boolean;
+  template?: boolean;
 	loadFailed: boolean;
   accessMap: AccessMap;
   revisions: RevisionList;
@@ -143,6 +144,7 @@ export interface SessionUpdateProps
 	deleted?: boolean;
 	published?: boolean;
 	official?: boolean;
+  template?: boolean;
   locked?: boolean;
   name?: string;
   description?: string;
