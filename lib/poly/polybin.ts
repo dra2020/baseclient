@@ -50,20 +50,109 @@ function unpackString(coder: Util.Coder, buf8: Uint8Array, buf32: Int32Array, of
   return s;
 }
 
-export function packCollection(coder: Util.Coder, col: any): ArrayBuffer
+/**
+ * Properties temporarily removed for the duration of a pack, and where they came from.
+ *
+ * WHY THIS IS WORTH HAVING. The JSON in a geopack is JSON.stringify of the collection, so anything
+ * hanging off a feature goes into the file. A Float64Array does not survive that: it serializes as
+ * {"0":n,"1":n,...}, which is both enormous and unreadable on the way back - the same damage
+ * repairPackedBuffers exists to undo for coordinates. PackedFields are exactly such arrays, and they
+ * are DERIVED, so writing them is waste even when it works. Naming them here means a caller cannot
+ * forget, and does not have to strip and rebuild them around every call.
+ */
+interface OmittedProps
 {
-  // Compute size
-  let pp = PP.featurePack(col) as PP.PolyPack;
-  let f: any = col.features.find((f: any) => { return f.geometry.packed ? f.geometry.packed.buffer : null });
-  let buffer: any = f ? f.geometry.packed.buffer : null;
-  let size = 16; // int endiness, offset to coordinates, float endiness
-  col.features.forEach((f: any) => { if (f.geometry.packed) delete f.geometry.packed.buffer; }); // reconstructed when unpacking
+  o: any;
+  name: string;
+  value: any;
+}
+
+function collectOmitted(col: any, omit?: string[]): OmittedProps[]
+{
+  let saved: OmittedProps[] = [];
+  if (! omit || omit.length === 0) return saved;
+
+  const take = (o: any) => {
+      if (! o) return;
+      omit.forEach(name => {
+          if (o[name] !== undefined) { saved.push({ o, name, value: o[name] }); delete o[name] }
+        });
+    };
+
+  take(col);
+  if (col.features) col.features.forEach((f: any) => { take(f); take(f.properties) });
+  return saved;
+}
+
+function restoreOmitted(saved: OmittedProps[]): void
+{
+  saved.forEach(s => { s.o[s.name] = s.value });
+}
+
+/** One feature's coordinates during a pack: where they are now, and where they are going. */
+interface PackSlot
+{
+  packed: any;        // the feature's geometry.packed
+  buffer: any;        // its buffer, to be put back afterwards
+  fromOffset: number; // its index within that buffer
+  toOffset: number;   // its index within the file's coordinate section
+  length: number;
+}
+
+/**
+ * Serialize a collection to the geopack format.
+ *
+ * The file wants one contiguous coordinate section with every feature's offset an index into it, and
+ * that used to be arranged by requiring the whole collection to already sit in ONE buffer at exactly
+ * those offsets - packCollection simply blitted that buffer across whole. Which held only as long as
+ * nothing had touched the collection since: pack a collection, add a feature, pack again, and the
+ * second pack either redid all the work or produced offsets into a buffer that no longer described it.
+ *
+ * So the coordinates are gathered feature by feature instead. Each one is given its place in the
+ * output, and its floats are copied from wherever they happen to live now - one buffer or several. The
+ * work is the same (every float is copied either way), the assumption is gone, and featurePack is free
+ * to leave already-packed features alone.
+ *
+ * THE FORMAT IS UNCHANGED. Offsets are assigned in feature order from zero, which is exactly what a
+ * single shared buffer produced, so files written before and after this are byte-identical and each
+ * reads under the other.
+ *
+ * `omit` names properties to leave out of the serialized JSON - see the note on collectOmitted.
+ */
+export function packCollection(coder: Util.Coder, col: any, omit?: string[]): ArrayBuffer
+{
+  // Which features arrive unpacked, so they can be left that way. Packing is how the coordinates get
+  // written; it is not something the caller asked for, and a caller that handed over an unpacked
+  // collection and got a packed one back would find its own coordinates gone. Equally, a caller whose
+  // collection was ALREADY packed must not have it unpacked - that rebuilds every coordinate array
+  // for nothing, which on a large collection is the memory this change exists to stop spending.
+  let wasUnpacked: any[] = [];
+  if (col.features) col.features.forEach((f: any) => { if (! PP.featureIsPacked(f)) wasUnpacked.push(f) });
+
+  PP.featurePack(col);
+
+  // Where every feature's coordinates are now, and where they will be in the file.
+  let slots: PackSlot[] = [];
+  let nFloats = 0;
+  col.features.forEach((f: any) => {
+      const packed = f.geometry ? f.geometry.packed : null;
+      if (! packed) return;
+      slots.push({ packed, buffer: packed.buffer, fromOffset: packed.offset, toOffset: nFloats,
+                   length: packed.length });
+      nFloats += packed.length;
+    });
+
+  // The JSON carries each feature's offset, so the offsets have to be the file's before it is built.
+  // Buffers come out because they are reconstructed on the way back in.
+  slots.forEach(s => { s.packed.offset = s.toOffset; delete s.packed.buffer });
+  const omitted = collectOmitted(col, omit);
+
+  let size = 16; // int endianness, offset to coordinates, float endianness
   let j = JSON.stringify(col);
   size += sizeOfString(coder, j);
   size += pad(size, 8);
-  let fullsize = size + pp.length * 8;  // add space for coordinates
+  let fullsize = size + nFloats * 8;
 
-  // Now pack it
   let ab = new ArrayBuffer(fullsize);
   let buf8 = new Uint8Array(ab);
   let buf32 = new Int32Array(ab);
@@ -79,14 +168,21 @@ export function packCollection(coder: Util.Coder, col: any): ArrayBuffer
   offset += pad(offset, 8);
   if (offset != size)
     throw 'Oops, packing error.';
-  let foff = offset >> 3;
-  let buf = pp.buffer as Float64Array;
-  for (let i: number = 0; i < pp.length; i++)
-    buf64[foff++] = buf[i];
 
-  // Now restore
-  col.features.forEach((f: any) => { if (f.geometry.packed) f.geometry.packed.buffer = buffer; });
-  PP.featureUnpack(col);
+  const foff = offset >> 3;
+  slots.forEach(s => {
+      const src = s.buffer as Float64Array;
+      if (! src) return;   // no coordinates: points, and features with no geometry
+      let to = foff + s.toOffset;
+      let from = s.fromOffset;
+      for (let i = 0; i < s.length; i++)
+        buf64[to++] = src[from++];
+    });
+
+  // Put the collection back exactly as it was found.
+  slots.forEach(s => { s.packed.offset = s.fromOffset; s.packed.buffer = s.buffer });
+  restoreOmitted(omitted);
+  wasUnpacked.forEach(f => PP.featureUnpack(f));
 
   return ab;
 }

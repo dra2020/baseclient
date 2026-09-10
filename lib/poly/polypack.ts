@@ -330,14 +330,58 @@ export function polyUnpack(prepack: any): any
   return coords.length > 1 ? coords : coords[0];
 }
 
+/** Whether this feature's coordinates are already in packed form. */
+export function featureIsPacked(f: any): boolean
+{
+  return !! (f && f.geometry && f.geometry.packed !== undefined);
+}
+
+/**
+ * Floats this feature would ADD to a buffer if packed now: zero if it is already packed, and zero for
+ * the shapes that carry no packed coordinates at all (points, and features with no geometry).
+ */
 export function featurePackSize(f: any): number
 {
+  if (featureIsPacked(f)) return 0;
   if (f && f.geometry && f.geometry.coordinates && f.geometry.type !== 'Point')
     return polyPackSize(f.geometry.coordinates);
   return 0;
 }
 
-export function featurePack(f: any, prepack?: PolyPack): any
+/**
+ * Repair packed buffers that have been through JSON and come back as plain objects.
+ *
+ * A Float64Array does not survive JSON.stringify/parse - it comes back as {"0":n,"1":n,...} - so a
+ * collection that has been round-tripped through JSON while packed arrives with something that looks
+ * packed but cannot be read. This puts the numbers back into a real Float64Array.
+ *
+ * Split out of featurePack, where it used to sit inline in the middle of the packing path, because it
+ * is not packing: it is a repair for a specific way collections arrive damaged, it applies to
+ * collections that are ALREADY packed, and burying it inside meant featurePack had to return early
+ * with a different kind of value to signal it had happened. Returns whether anything was repaired.
+ */
+export function repairPackedBuffers(col: any): boolean
+{
+  if (! col || ! col.features || col.features.length === 0) return false;
+
+  let ff: any = col.features[0];
+  if (! featureIsPacked(ff) || ArrayBuffer.isView(ff.geometry.packed.buffer)) return false;
+
+  // One buffer is shared by every feature of a collection, so recovering the first recovers all.
+  let o: any = ff.geometry.packed.buffer;
+  let b = new Float64Array(Util.countKeys(o));
+  for (const i in o) b[Number(i)] = o[i];
+  col.features.forEach((f: any) => { if (featureIsPacked(f)) f.geometry.packed.buffer = b });
+  return true;
+}
+
+/**
+ * Pack ONE feature's coordinates, into `prepack`'s buffer when given one. Returns the PolyPack that
+ * describes where they went, which is how the collection path below advances its offset.
+ *
+ * Internal: featurePack is the public entry and always answers with the object it was handed.
+ */
+function packOne(f: any, prepack?: PolyPack): PolyPack
 {
   if (f && f.type === 'Feature')
   {
@@ -355,45 +399,57 @@ export function featurePack(f: any, prepack?: PolyPack): any
     }
     return f.geometry.packed;
   }
+  return null;
+}
+
+/**
+ * Ensure a feature or collection is fully packed, and answer with the object handed in.
+ *
+ * ALWAYS the same object, whatever was passed and whatever it had to do. The previous signature
+ * returned three different things - a PolyPack for a feature, a PolyPack for a collection it packed,
+ * and the collection itself for one that was already packed - so a caller could not use the result
+ * without knowing which case it had fallen into, and every caller but one ignored it. The one that
+ * did not assigned a PolyPack to geometry.coordinates.
+ *
+ * A collection packs its UNPACKED features into one new buffer and leaves packed ones where they are.
+ * That is what stops a second call re-packing work already done, which for a large collection means
+ * allocating and copying the whole coordinate set again for nothing. Features already packed keep
+ * whatever buffer they were in - the collection may end up spanning several - and packCollection no
+ * longer minds, because it copies feature by feature rather than assuming one buffer holds them all.
+ */
+export function featurePack(f: any): any
+{
+  if (f && f.type === 'Feature')
+  {
+    if (! featureIsPacked(f)) packOne(f);
+    return f;
+  }
   else if (f && f.type === 'FeatureCollection' && f.features)
   {
-    // Empty?
-    if (f.features.length == 0) return f;
+    if (f.features.length === 0) return f;
 
-    // Already packed or packed incorrectly?
-    let ff: any = f.features[0];
-    if (ff && ff.geometry && ff.geometry.packed)
-    {
-      // Already packed
-      if (ArrayBuffer.isView(ff.geometry.packed.buffer))
-        return f;
-      // Improperly packed (buffer converted to object - convert back to buffer
-      let o: any = ff.geometry.packed.buffer;
-      let b = new Float64Array(Util.countKeys(o));
-      for (const i in o) b[Number(i)] = o[i];
-      f.features.forEach((ff: any) => ff.geometry.packed.buffer = b);
-      return f;
-    }
+    // Before measuring anything: a collection in this state looks packed but is not readable.
+    repairPackedBuffers(f);
 
-    // Allocate one large buffer
+    // One buffer for everything still unpacked. Sized first so it is allocated exactly once.
     let nFloats: number = 0;
     let i: number;
     for (i = 0; i < f.features.length; i++)
       nFloats += featurePackSize(f.features[i]);
-    let ab = new ArrayBuffer(nFloats * 8);
-    prepack = { offset: 0, length: nFloats, buffer: new Float64Array(ab) };
 
-    // Now pack
+    let prepack: PolyPack = { offset: 0, length: nFloats,
+                              buffer: new Float64Array(new ArrayBuffer(nFloats * 8)) };
     for (i = 0; i < f.features.length; i++)
     {
-      let postpack = featurePack(f.features[i], prepack);
+      if (featureIsPacked(f.features[i])) continue;
+      let postpack = packOne(f.features[i], prepack);
       prepack.offset += postpack ? postpack.length : 0;
     }
     if (prepack.offset != nFloats)
       throw 'oops, packing bug';
-    return prepack;
+    return f;
   }
-  return null;
+  return f;
 }
 
 export function featureUnpack(f: any): any

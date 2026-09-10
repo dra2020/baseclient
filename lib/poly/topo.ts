@@ -36,6 +36,20 @@ function getGEOID(f: any): string
 export function topoFromCollection(col: any): Topo
 {
   if (col == null) return null;
+
+  // The objects map below is keyed per feature, so every feature needs an id that is present, unique
+  // and a string - and the topology is meaningless without one. A collection that has no usable id
+  // would otherwise key EVERY feature to undefined and collapse the whole thing onto a single object,
+  // silently: the topology comes back with one object in it and nothing anywhere reports a problem.
+  // An imported GeoJSON file is the ordinary way to arrive here in that state, because GeoJSON puts a
+  // feature's id at the TOP level and most exporters write it there rather than in properties.
+  //
+  // geoEnsureID also NORMALIZES, which matters as much: it copies GEOID/GEOID10 into properties.id,
+  // so the key used here is properties.id whatever the collection called it. Callers that read the
+  // objects map back - topoSimplifyCollection does, by properties.id - would otherwise be looking up
+  // a key this function never used.
+  G.geoEnsureID(col);
+
   let save = PP.featureUnpackTemporarily(col);
   let prop = getGEOID(col);
   let objects: any = {};
@@ -259,6 +273,14 @@ export function topoSimplifyCollection(col: any, options?: SimplifyOptions): any
     col.features.forEach((f: any) => {
         let oOld: any = topo.objects[f.properties.id];
         let oNew: any = testtopo.objects[f.properties.id];
+
+        // Every feature must have found its own object. topoFromCollection guarantees it, so reaching
+        // here means the keying has diverged - and the two ways that goes wrong are both silent or
+        // worse: a collection with no ids used to put every feature on ONE object and come back
+        // simplified to a single feature, and a mismatched key dereferences undefined a few lines
+        // below. Neither is worth guessing through, so stop and leave the collection alone.
+        if (oOld === undefined || oNew === undefined)
+          throw `topoSimplifyCollection: feature id ${f.properties.id} has no topology object`;
 
         // Ignore points
         if (f.geometry && f.geometry.type === 'Point')
