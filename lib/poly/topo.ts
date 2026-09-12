@@ -105,9 +105,67 @@ export function topoContiguity(topo: Topo): any
   return result;
 }
 
+/**
+ * Resolved polygon geometry, keyed on the TOPOLOGY OBJECT and held at module level.
+ *
+ * The two things a topology object stands for have opposite natures, and the split matters:
+ *
+ *   ARCS are a property of the topology the object appears in. The same object shares different arcs
+ *   in different topologies - a precinct and a block do not break at the same places - which is why
+ *   arc offsets live in a per-topology WeakMap (topology.packed.objectArcs) rather than on the object.
+ *
+ *   GEOMETRY is not. The points are the same wherever the object appears. It may end up PACKED into
+ *   different buffers depending on which collection packed it, but the coordinates are identical, and
+ *   a collection packed from several buffers is fine by construction (see packCollection).
+ *
+ * So geometry can be cached once, globally, for the life of the object. Module level rather than a
+ * field on the object precisely to avoid the project-then-strip dance that packedarcs still needs
+ * around JSON.stringify in topoToBuffer - a trick that has produced real bugs by leaving values
+ * persisted where they should not be. A WeakMap is invisible to serialization and dies with the
+ * object.
+ *
+ * THE RULE THAT KEEPS THIS CORRECT. Any operation that changes an object's resolved geometry must
+ * produce a NEW object; operations that preserve geometry may share identity. Both hold today: splice
+ * renumbers and subdivides arcs, neither of which moves a point, and it now shares objects
+ * deliberately; simplification goes through topoFromCollection and so builds new objects. DRA
+ * topologies are unquantized, so there is no transform that could decode the same arcs differently.
+ */
+const builtGeometry = new WeakMap<any, any>();
+let cacheHits = 0;
+let cacheMisses = 0;
+
+/** Hits are geometry that would otherwise have been rebuilt from arcs; misses are the rebuilds that
+ *  were actually necessary. That distinction is the point - a raw conversion count cannot tell them
+ *  apart. Call as Poly.topoFeatureCacheStats() from the console. */
+export function topoFeatureCacheStats(): { hits: number, misses: number, pct: number }
+{
+  const total = cacheHits + cacheMisses;
+  return { hits: cacheHits, misses: cacheMisses, pct: total ? Math.round((cacheHits / total) * 100) : 0 };
+}
+
+export function topoFeatureCacheReset(): void { cacheHits = 0; cacheMisses = 0 }
+
 export function topoToFeature(topo: Topo, geoid: string): any
 {
-  return correctGeometry(TopoClient.feature(topo, topo.objects[geoid]));
+  const o: any = topo.objects[geoid];
+  const geometry = o == null ? undefined : builtGeometry.get(o);
+  if (geometry !== undefined)
+  {
+    cacheHits++;
+    // A fresh Feature wrapper each call, matching what TopoClient.feature returns - including sharing
+    // the properties object with the topology object, which it already did. Only the geometry, the
+    // expensive and immutable part, is reused.
+    const f: any = { type: 'Feature', properties: o.properties == null ? {} : o.properties, geometry };
+    if (o.id != null) f.id = o.id;
+    if (o.bbox != null) f.bbox = o.bbox;
+    return f;
+  }
+  cacheMisses++;
+  const built = correctGeometry(TopoClient.feature(topo, o));
+  // Cached AFTER correctGeometry, so every later reader gets the rewound rings rather than repeating
+  // the correction.
+  if (o != null && built && built.geometry) builtGeometry.set(o, built.geometry);
+  return built;
 }
 
 export type TopoSpliceEntry = { topology: Topo, filterout?: any };
