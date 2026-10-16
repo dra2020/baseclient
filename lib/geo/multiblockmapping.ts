@@ -21,6 +21,16 @@ export function reverseBlockMapping(bm: BlockMapping): ReverseBlockMapping
   return rev;
 }
 
+// A set of block mappings consulted as one, without copying any of them.
+//
+// Entries are either independent (e.g. one per state of a multi-state map, whose block ids never
+// overlap) or overlapping (a base mapping followed by overrides such as precinct updates). Overlapping
+// entries must be added in priority order: map() and rev() walk from the last entry back, so a later
+// entry wins.
+//
+// A full block mapping, and the reverse mapping computed from it, are large (TX has ~670K blocks), so
+// combining mappings shares them rather than copying: add() takes an already-computed reverse mapping,
+// and addFrom() takes both from another MultiBlockMapping.
 export class MultiBlockMapping
 {
   entries: Entry[];
@@ -34,12 +44,30 @@ export class MultiBlockMapping
       this.entries.push({ tag, bm });
   }
 
-  add(tag: string, bm: BlockMapping): void
+  // Adds or replaces the entry for tag. Pass rbm when the reverse mapping of bm is already computed,
+  // so it is shared rather than built again.
+  add(tag: string, bm: BlockMapping, rbm?: ReverseBlockMapping): void
   {
-    this.entries.forEach(e => { if (e.tag === tag) { e.bm = bm; delete e.rbm; bm = null } });
-    if (bm)
-      this.entries.push({ tag, bm });
+    let e = this.entries.find(e => e.tag === tag);
+    if (e)
+    {
+      e.bm = bm;
+      if (rbm) e.rbm = rbm; else delete e.rbm;
+    }
+    else
+      this.entries.push(rbm ? { tag, bm, rbm } : { tag, bm });
     this.stamp++;
+  }
+
+  // Adds the entry for tag from another mapping - or, with no tag, all of its entries in order - sharing
+  // both the block mapping and its reverse mapping. The reverse mapping is computed on the source first
+  // if need be, so that it is built once, there, and not separately in each mapping that shares it.
+  addFrom(src: MultiBlockMapping, tag?: string): void
+  {
+    src.entries.forEach(e => {
+        if (tag === undefined || e.tag === tag)
+          this.add(e.tag, e.bm, src.rbmOf(e.tag));
+      });
   }
 
   remove(tag: string): void
@@ -50,6 +78,11 @@ export class MultiBlockMapping
         this.stamp++;
         this.entries.splice(i, 1);
       }
+  }
+
+  has(tag: string): boolean
+  {
+    return this.entries.some(e => e.tag === tag);
   }
 
   map(blockid: string): string
@@ -77,6 +110,17 @@ export class MultiBlockMapping
     return e ? e.bm : null;
   }
 
+  // The reverse mapping of the entry for tag, computed on first use.
+  rbmOf(tag: string): ReverseBlockMapping
+  {
+    let e = this.entries.find(e => e.tag === tag);
+    if (! e) return null;
+    if (! e.rbm) e.rbm = reverseBlockMapping(e.bm);
+    return e.rbm;
+  }
+
+  // Maps through the first entry only. Meaningful only where that entry is the base mapping and the
+  // rest are overrides; for independent entries (a multi-state mapping) use map().
   mapmain(blockid: string): string
   {
     return this.entries.length ? this.entries[0].bm[blockid] : undefined;
@@ -95,11 +139,21 @@ export class MultiBlockMapping
     return undefined;
   }
 
-  // Just walks first map
-  forEach(cb: (blockid: string) => void): void
+  // Walks the blocks of one entry: the one for tag, or with no tag the first. This is the right walk
+  // over "all blocks" only when that entry is a base mapping covering them and the others are overrides
+  // of it - it sees nothing of a multi-state mapping but its first state. See forEachBlock.
+  forEachBase(cb: (blockid: string) => void, tag?: string): void
   {
-    if (this.entries.length)
-      Object.keys(this.entries[0].bm).forEach(blockid => cb(blockid));
+    let e = tag === undefined ? this.entries[0] : this.entries.find(e => e.tag === tag);
+    if (e)
+      Object.keys(e.bm).forEach(blockid => cb(blockid));
+  }
+
+  // Walks the blocks of every entry. A block mapped by several entries (a base and its overrides) is
+  // visited once for each of them; independent entries (a multi-state mapping) never repeat a block.
+  forEachBlock(cb: (blockid: string) => void): void
+  {
+    this.entries.forEach(e => Object.keys(e.bm).forEach(blockid => cb(blockid)));
   }
 
   // Walk maps in reverse order, careful to not invoke on same geoid
