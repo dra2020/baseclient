@@ -53,6 +53,8 @@ function FsmStateToString(state: number): string
 
 export type FsmIndex = Set<Fsm>;
 
+export type FsmExceptionHandler = (fsm: Fsm, err: any) => void;
+
 export class FsmManager
 {
   theId: number;
@@ -60,6 +62,8 @@ export class FsmManager
   bTickSet: boolean;
   theTickList: FsmIndex;
   theBusyLoopCount: number;
+  theExceptionCount: number;
+  onException: FsmExceptionHandler;
 
   constructor()
   {
@@ -68,6 +72,8 @@ export class FsmManager
     this.bTickSet = false;
     this.theTickList = new Set<Fsm>();
     this.theBusyLoopCount = 0;
+    this.theExceptionCount = 0;
+    this.onException = (fsm: Fsm, err: any) => { console.error(`Fsm(${fsm.constructor.name}): exception in tick:`, err) };
     this.doTick = this.doTick.bind(this);
   }
 
@@ -92,7 +98,16 @@ export class FsmManager
       let thisTickList = this.theTickList;
       this.theTickList = new Set<Fsm>();
 
-      thisTickList.forEach((f: Fsm) => f.tick());
+      thisTickList.forEach((f: Fsm) => {
+          try
+          {
+            f.tick();
+          }
+          catch (err)
+          {
+            this.tickException(f, err);
+          }
+        });
     }
 
     if (this.theTickList.size == 0)
@@ -101,6 +116,29 @@ export class FsmManager
       this.theBusyLoopCount++;
 
     this.theEpoch++;
+  }
+
+  // An exception escaping a tick would otherwise unwind out of setImmediate and take down the whole
+  // process (or, in the browser, leave the tick loop wedged). Instead, report it and let the Fsm
+  // fail itself so anything waiting on it sees a dependent error rather than hanging forever.
+  tickException(f: Fsm, err: any): void
+  {
+    this.theExceptionCount++;
+    try
+    {
+      this.onException(f, err);
+    }
+    catch (e) {}
+    try
+    {
+      f.tickException(err);
+    }
+    catch (e)
+    {
+      try { this.onException(f, e) } catch (e2) {}
+      if (! f.done)
+        f.setState(FSM_ERROR);
+    }
   }
 }
 
@@ -224,6 +262,14 @@ export class Fsm
 
   tick(): void
   {
+  }
+
+  // Called (after FsmManager.onException has reported it) when tick() throws. Override to clean up or
+  // respond, but make sure the Fsm ends up done.
+  tickException(err: any): void
+  {
+    if (! this.done)
+      this.setState(FSM_ERROR);
   }
 }
 
